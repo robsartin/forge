@@ -1,6 +1,5 @@
-package com.robsartin.graphs.features;
+package com.robsartin.graphs.infrastructure;
 
-import com.robsartin.graphs.infrastructure.MutableGraph;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;
