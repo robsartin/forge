@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: graph-experiment
+  profiles:
+    active: dev
+
+jmolecules:
+  ddd:
+    # Enable jMolecules DDD annotations processing
+    enabled: true
+  events:
+    # Publish domain events via Spring event mechanism
+    enabled: true
