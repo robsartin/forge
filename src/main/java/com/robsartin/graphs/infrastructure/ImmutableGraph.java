@@ -1,4 +1,4 @@
-package infrastructure;
+package com.robsartin.graphs.infrastructure;
 
 import java.util.*;
 import java.util.function.Consumer;
