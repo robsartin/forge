@@ -1,4 +1,4 @@
-package com.robsartin.graphs;
+package com.robsartin.graphs.application;
 
 import com.robsartin.graphs.infrastructure.ImmutableGraph;
 
