@@ -24,13 +24,13 @@ This is an exploration of graph input, output, visualization and metrics. The co
 # java structure
 under forge
 - src/main/java/com/robsartin/graphs 
-  - application - core code, no spring
+  - application - core code, no spring, depends on domain.ports.in, domain.models and config, and infrastructure, 
   - config
-  - domain - domain entities, value objects, and domain services
-    - model - working guts and DTOs
-    - port
+  - domain - domain entities, value objects, and domain services, depends on ports, models, not on application, nor features
+    - models - working guts and DTOs
+    - ports
       - in - ports for input
       - out - ports for output
-  - features - separate package for each feature, no code sharing
-  - infrastructure - support code
+  - features - separate package for each feature, no code sharing, depends only on infrastructure, domain.ports
+  - infrastructure - support code, does not depend on other packages
     - adapters - adapters to external systems in subpackages if there are many files
