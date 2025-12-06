@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -101,6 +103,67 @@ class ItemControllerTest {
     @Test
     void shouldRejectPostWithoutName() throws Exception {
         mockMvc.perform(post("/items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldDeleteItemById() throws Exception {
+        when(itemRepository.existsById(1)).thenReturn(true);
+        doNothing().when(itemRepository).deleteById(1);
+
+        mockMvc.perform(delete("/items/1"))
+                .andExpect(status().isNoContent());
+
+        verify(itemRepository).deleteById(1);
+    }
+
+    @Test
+    void shouldReturn404WhenDeletingNonExistentItem() throws Exception {
+        when(itemRepository.existsById(999)).thenReturn(false);
+
+        mockMvc.perform(delete("/items/999"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldUpdateItemName() throws Exception {
+        Item existingItem = new Item("Old Name");
+        existingItem.setId(1);
+        Item updatedItem = new Item("New Name");
+        updatedItem.setId(1);
+
+        when(itemRepository.findById(1)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.save(any(Item.class))).thenReturn(updatedItem);
+
+        String requestBody = objectMapper.writeValueAsString(
+                new ItemController.UpdateItemRequest("New Name"));
+
+        mockMvc.perform(put("/items/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("New Name"));
+    }
+
+    @Test
+    void shouldReturn404WhenUpdatingNonExistentItem() throws Exception {
+        when(itemRepository.findById(999)).thenReturn(Optional.empty());
+
+        String requestBody = objectMapper.writeValueAsString(
+                new ItemController.UpdateItemRequest("New Name"));
+
+        mockMvc.perform(put("/items/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldRejectPutWithoutName() throws Exception {
+        mockMvc.perform(put("/items/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest());
