@@ -61,8 +61,48 @@ public class ItemController {
     }
 
     /**
+     * DELETE /items/{id} - Deletes an item by ID
+     *
+     * @param id the item ID to delete
+     * @return 204 No Content if deleted, 404 if not found
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteItem(@PathVariable Integer id) {
+        if (!itemRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        itemRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * PUT /items/{id} - Updates an item's name
+     *
+     * @param id the item ID
+     * @param request the update request containing the new name
+     * @return the updated item if found, 404 if not found
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<Item> updateItem(@PathVariable Integer id,
+                                           @Valid @RequestBody UpdateItemRequest request) {
+        return itemRepository.findById(id)
+                .map(item -> {
+                    item.setName(request.name());
+                    Item updatedItem = itemRepository.save(item);
+                    return ResponseEntity.ok(updatedItem);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
      * Request DTO for creating an item
      */
     public record CreateItemRequest(@NotBlank(message = "Name is required") String name) {
+    }
+
+    /**
+     * Request DTO for updating an item
+     */
+    public record UpdateItemRequest(@NotBlank(message = "Name is required") String name) {
     }
 }
