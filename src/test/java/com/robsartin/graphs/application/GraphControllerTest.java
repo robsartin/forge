@@ -111,6 +111,45 @@ class GraphControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void shouldRejectPostWithEmptyName() throws Exception {
+        mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldRejectPostWithBlankName() throws Exception {
+        mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"   \"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldRejectPostWithNullName() throws Exception {
+        mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": null}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldCallRepositorySaveWhenCreatingGraph() throws Exception {
+        Graph savedGraph = new Graph("Test Graph");
+        savedGraph.setId(1);
+
+        when(graphRepository.save(any(Graph.class))).thenReturn(savedGraph);
+
+        mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated());
+
+        verify(graphRepository).save(any(Graph.class));
+    }
+
     // DELETE /graphs/{id} - delete graph by id
     @Test
     void shouldDeleteGraphById() throws Exception {
