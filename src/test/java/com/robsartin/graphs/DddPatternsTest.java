@@ -44,11 +44,11 @@ class DddPatternsTest {
         }
 
         @Test
-        @DisplayName("domain classes should not depend on infrastructure")
-        void domainShouldNotDependOnInfrastructure() {
+        @DisplayName("domain classes should not depend on application")
+        void domainShouldNotDependOnApplication() {
             noClasses()
                     .that().resideInAPackage("com.robsartin.graphs.domain..")
-                    .should().dependOnClassesThat().resideInAPackage("com.robsartin.graphs.infrastructure..")
+                    .should().dependOnClassesThat().resideInAPackage("com.robsartin.graphs.application..")
                     .allowEmptyShould(true)
                     .check(allClasses);
         }
