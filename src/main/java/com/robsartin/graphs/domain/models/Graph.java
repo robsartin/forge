@@ -7,10 +7,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -89,6 +91,18 @@ public class Graph {
                 .filter(n -> n.getGraphNodeId() != null && n.getGraphNodeId() == graphNodeId)
                 .findFirst()
                 .orElse(null);
+    }
+
+    @PostLoad
+    private void reconstructImmutableGraph() {
+        this.immutableGraph = new ImmutableGraph<>();
+        nodes.stream()
+                .filter(n -> n.getGraphNodeId() != null)
+                .sorted(Comparator.comparing(GraphNode::getGraphNodeId))
+                .forEach(node -> {
+                    ImmutableGraph.GraphWithNode<String, String> result = immutableGraph.addNode(node.getName());
+                    this.immutableGraph = result.getGraph();
+                });
     }
 
     @Override
