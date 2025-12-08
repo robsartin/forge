@@ -1,7 +1,7 @@
 package com.robsartin.graphs.infrastructure.adapters.persistence;
 
-import com.robsartin.graphs.domain.models.Graph;
-import com.robsartin.graphs.domain.ports.out.GraphRepository;
+import com.robsartin.graphs.models.Graph;
+import com.robsartin.graphs.ports.out.GraphRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

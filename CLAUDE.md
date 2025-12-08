@@ -95,7 +95,10 @@ For GitHub operations:
 - Package names: lowercase (e.g., `com.example.forge`)
 - Class names: PascalCase (e.g., `UserManager`)
 - Method names: camelCase (e.g., `getUserById`)
+- Methods short, preferably less than 20 lines
+- Use 
 - Constants: UPPER_SNAKE_CASE (e.g., `MAX_RETRY_COUNT`)
+- Never use @Autowired fields. Do DI with constructor.
 
 **Documentation:**
 - Add Javadoc comments for public classes and methods
@@ -112,6 +115,8 @@ For GitHub operations:
 - Integration tests for component interactions
 - Follow arrange-act-assert pattern
 - Use descriptive test method names
+- Write test before implementing code
+- Make test independent of implemenation as much as possible
 
 ### General Development Principles
 
