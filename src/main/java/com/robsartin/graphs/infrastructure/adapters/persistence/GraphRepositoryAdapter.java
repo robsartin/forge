@@ -44,4 +44,9 @@ public class GraphRepositoryAdapter implements GraphRepository {
     public boolean existsById(Integer id) {
         return jpaGraphRepository.existsById(id);
     }
+
+    @Override
+    public void deleteAll() {
+        jpaGraphRepository.deleteAll();
+    }
 }

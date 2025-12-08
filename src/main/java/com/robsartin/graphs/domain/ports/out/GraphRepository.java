@@ -49,4 +49,9 @@ public interface GraphRepository {
      * @return true if a graph exists, false otherwise
      */
     boolean existsById(Integer id);
+
+    /**
+     * Deletes all graphs from the repository.
+     */
+    void deleteAll();
 }
