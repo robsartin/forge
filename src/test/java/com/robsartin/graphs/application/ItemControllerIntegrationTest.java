@@ -23,14 +23,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class ItemControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    private final MockMvc mockMvc;
+    private final ObjectMapper objectMapper;
+    private final ItemRepository itemRepository;
 
     @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private ItemRepository itemRepository;
+    ItemControllerIntegrationTest(MockMvc mockMvc, ObjectMapper objectMapper, ItemRepository itemRepository) {
+        this.mockMvc = mockMvc;
+        this.objectMapper = objectMapper;
+        this.itemRepository = itemRepository;
+    }
 
     @BeforeEach
     void setUp() {
