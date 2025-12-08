@@ -108,7 +108,7 @@ class DddPatternsTest {
         void repositoriesInInfrastructure() {
             classes()
                     .that().haveNameMatching(".*Repository$")
-                    .should().resideInAPackage("com.robsartin.graphs.domain.ports.out..")
+                    .should().resideInAPackage("com.robsartin.graphs.ports.out..")
                     .orShould().resideInAPackage("com.robsartin.graphs.infrastructure.adapters..")
                     .allowEmptyShould(true)
                     .check(allClasses);
