@@ -169,9 +169,9 @@ public class GraphController {
      * POST /graphs/{id}/nodes/{fromId}/{toId} - Adds an edge between two nodes
      *
      * @param id the graph ID
-     * @param fromId the source node graph ID
-     * @param toId the target node graph ID
-     * @return 200 OK if edge added, 404 if graph not found
+     * @param fromId the source node database ID
+     * @param toId the target node database ID
+     * @return 200 OK if edge added, 404 if graph not found, 400 if nodes not found
      */
     @PostMapping("/{id}/nodes/{fromId}/{toId}")
     public ResponseEntity<Void> addEdge(@PathVariable Integer id,
@@ -179,7 +179,21 @@ public class GraphController {
                                         @PathVariable Integer toId) {
         return graphRepository.findById(id)
                 .map(graph -> {
-                    graph.addEdge(fromId, toId);
+                    // Find nodes by database ID and get their graphNodeIds
+                    GraphNode fromNode = graph.getNodes().stream()
+                            .filter(n -> n.getId().equals(fromId))
+                            .findFirst()
+                            .orElse(null);
+                    GraphNode toNode = graph.getNodes().stream()
+                            .filter(n -> n.getId().equals(toId))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (fromNode == null || toNode == null) {
+                        throw new IllegalArgumentException("Both nodes must exist in the graph");
+                    }
+
+                    graph.addEdge(fromNode.getGraphNodeId(), toNode.getGraphNodeId());
                     graphRepository.save(graph);
                     return ResponseEntity.ok().<Void>build();
                 })
