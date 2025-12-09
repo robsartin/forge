@@ -302,20 +302,53 @@ class GraphControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // GET /graphs/{id}/nodes/{nodeId} - get a specific node
+    // GET /graphs/{id}/nodes/{nodeId} - get a specific node with links
     @Test
-    void shouldReturnNodeById() throws Exception {
+    void shouldReturnNodeByIdWithLinks() throws Exception {
         Graph graph = new Graph("Test Graph");
         GraphNode node = new GraphNode("Node A", 0);
         node.setGraph(graph);
         graph.getNodes().add(node);
+        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node A").getGraph());
         Graph savedGraph = graphRepository.save(graph);
         Integer nodeId = savedGraph.getNodes().get(0).getId();
 
         mockMvc.perform(get("/graphs/" + savedGraph.getId() + "/nodes/" + nodeId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(nodeId))
-                .andExpect(jsonPath("$.name").value("Node A"));
+                .andExpect(jsonPath("$.node.graphNodeId").value(0))
+                .andExpect(jsonPath("$.node.name").value("Node A"))
+                .andExpect(jsonPath("$.toNodes").isArray())
+                .andExpect(jsonPath("$.toNodes.length()").value(0));
+    }
+
+    @Test
+    void shouldReturnNodeWithLinkedNodes() throws Exception {
+        Graph graph = new Graph("Test Graph");
+        GraphNode node1 = new GraphNode("Node A", 0);
+        GraphNode node2 = new GraphNode("Node B", 1);
+        GraphNode node3 = new GraphNode("Node C", 2);
+        node1.setGraph(graph);
+        node2.setGraph(graph);
+        node3.setGraph(graph);
+        graph.getNodes().add(node1);
+        graph.getNodes().add(node2);
+        graph.getNodes().add(node3);
+
+        // Build the immutable graph: A -> B and A -> C
+        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node A").getGraph());
+        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node B").getGraph());
+        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node C").getGraph());
+        graph.setImmutableGraph(graph.getImmutableGraph().addEdge(0, 1, "edge"));
+        graph.setImmutableGraph(graph.getImmutableGraph().addEdge(0, 2, "edge"));
+        Graph savedGraph = graphRepository.save(graph);
+        Integer nodeId = savedGraph.getNodes().get(0).getId();
+
+        mockMvc.perform(get("/graphs/" + savedGraph.getId() + "/nodes/" + nodeId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.node.graphNodeId").value(0))
+                .andExpect(jsonPath("$.node.name").value("Node A"))
+                .andExpect(jsonPath("$.toNodes").isArray())
+                .andExpect(jsonPath("$.toNodes.length()").value(2));
     }
 
     @Test

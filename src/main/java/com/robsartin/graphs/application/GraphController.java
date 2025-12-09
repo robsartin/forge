@@ -147,20 +147,37 @@ public class GraphController {
     }
 
     /**
-     * GET /graphs/{id}/nodes/{nodeId} - Retrieves a specific node by ID
+     * GET /graphs/{id}/nodes/{nodeId} - Retrieves a specific node by ID with its linked nodes
      *
      * @param id the graph ID
      * @param nodeId the node ID
-     * @return the node if found, 404 if not found
+     * @return the node with its linked nodes if found, 404 if not found
      */
     @GetMapping("/{id}/nodes/{nodeId}")
-    public ResponseEntity<NodeResponse> getNodeById(@PathVariable Integer id,
-                                                    @PathVariable Integer nodeId) {
+    public ResponseEntity<NodeWithLinksResponse> getNodeById(@PathVariable Integer id,
+                                                              @PathVariable Integer nodeId) {
         return graphRepository.findById(id)
                 .flatMap(graph -> graph.getNodes().stream()
                         .filter(n -> n.getId().equals(nodeId))
                         .findFirst()
-                        .map(n -> ResponseEntity.ok(new NodeResponse(n.getId(), n.getName()))))
+                        .map(node -> {
+                            NodeInfoResponse nodeInfo = new NodeInfoResponse(node.getGraphNodeId(), node.getName());
+                            List<NodeInfoResponse> toNodes = new ArrayList<>();
+
+                            if (node.getGraphNodeId() != null) {
+                                var context = graph.getImmutableGraph().getContext(node.getGraphNodeId());
+                                if (context != null) {
+                                    for (Integer successorId : context.getSuccessors().keySet()) {
+                                        GraphNode linkedNode = graph.findNodeByGraphNodeId(successorId);
+                                        if (linkedNode != null) {
+                                            toNodes.add(new NodeInfoResponse(linkedNode.getGraphNodeId(), linkedNode.getName()));
+                                        }
+                                    }
+                                }
+                            }
+
+                            return ResponseEntity.ok(new NodeWithLinksResponse(nodeInfo, toNodes));
+                        }))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -273,5 +290,17 @@ public class GraphController {
      * Response DTO for node
      */
     public record NodeResponse(Integer id, String name) {
+    }
+
+    /**
+     * Response DTO for node info with graphNodeId
+     */
+    public record NodeInfoResponse(Integer graphNodeId, String name) {
+    }
+
+    /**
+     * Response DTO for node with its linked nodes
+     */
+    public record NodeWithLinksResponse(NodeInfoResponse node, List<NodeInfoResponse> toNodes) {
     }
 }
