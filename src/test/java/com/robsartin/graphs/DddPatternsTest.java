@@ -12,7 +12,6 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
  * ArchUnit tests for DDD (Domain-Driven Design) patterns enforced via jMolecules.
- *
  * These tests verify that domain model classes properly follow DDD principles
  * for aggregates, entities, and value objects as the project evolves.
  */
@@ -108,7 +107,7 @@ class DddPatternsTest {
         void repositoriesInInfrastructure() {
             classes()
                     .that().haveNameMatching(".*Repository$")
-                    .should().resideInAPackage("com.robsartin.graphs.domain.ports.out..")
+                    .should().resideInAPackage("com.robsartin.graphs.ports.out..")
                     .orShould().resideInAPackage("com.robsartin.graphs.infrastructure.adapters..")
                     .allowEmptyShould(true)
                     .check(allClasses);

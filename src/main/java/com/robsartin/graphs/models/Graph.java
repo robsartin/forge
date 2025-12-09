@@ -1,4 +1,4 @@
-package com.robsartin.graphs.domain.models;
+package com.robsartin.graphs.models;
 
 import com.robsartin.graphs.infrastructure.ImmutableGraph;
 import jakarta.persistence.CascadeType;

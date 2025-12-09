@@ -1,4 +1,4 @@
-package com.robsartin.graphs.domain.models;
+package com.robsartin.graphs.models;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

@@ -1,6 +1,6 @@
-package com.robsartin.graphs.domain.ports.out;
+package com.robsartin.graphs.ports.out;
 
-import com.robsartin.graphs.domain.models.Graph;
+import com.robsartin.graphs.models.Graph;
 
 import java.util.List;
 import java.util.Optional;

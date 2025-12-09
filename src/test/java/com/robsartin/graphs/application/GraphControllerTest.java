@@ -1,10 +1,10 @@
 package com.robsartin.graphs.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.robsartin.graphs.domain.models.Graph;
-import com.robsartin.graphs.domain.models.GraphNode;
-import com.robsartin.graphs.domain.ports.out.GraphRepository;
-import jakarta.persistence.EntityManager;
+import com.robsartin.graphs.models.Graph;
+import com.robsartin.graphs.models.GraphNode;
+import com.robsartin.graphs.ports.out.GraphRepository;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,9 +1,8 @@
 package com.robsartin.graphs.application;
 
-import com.robsartin.graphs.domain.models.Graph;
-import com.robsartin.graphs.domain.models.GraphNode;
-import com.robsartin.graphs.domain.ports.out.GraphRepository;
-import com.robsartin.graphs.infrastructure.ImmutableGraph;
+import com.robsartin.graphs.models.Graph;
+import com.robsartin.graphs.models.GraphNode;
+import com.robsartin.graphs.ports.out.GraphRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
