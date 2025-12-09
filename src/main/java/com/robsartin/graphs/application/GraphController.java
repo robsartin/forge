@@ -168,8 +168,8 @@ public class GraphController {
      * POST /graphs/{id}/nodes/{fromId}/{toId} - Adds an edge between two nodes
      *
      * @param id the graph ID
-     * @param fromId the source node database ID
-     * @param toId the target node database ID
+     * @param fromId the source node graph node ID
+     * @param toId the target node graph node ID
      * @return 200 OK if edge added, 404 if graph not found, 400 if nodes not found
      */
     @PostMapping("/{id}/nodes/{fromId}/{toId}")
@@ -178,13 +178,13 @@ public class GraphController {
                                         @PathVariable Integer toId) {
         return graphRepository.findById(id)
                 .map(graph -> {
-                    // Find nodes by database ID and get their graphNodeIds
+                    // Find nodes by graphNodeId
                     GraphNode fromNode = graph.getNodes().stream()
-                            .filter(n -> n.getId().equals(fromId))
+                            .filter(n -> n.getGraphNodeId().equals(fromId))
                             .findFirst()
                             .orElse(null);
                     GraphNode toNode = graph.getNodes().stream()
-                            .filter(n -> n.getId().equals(toId))
+                            .filter(n -> n.getGraphNodeId().equals(toId))
                             .findFirst()
                             .orElse(null);
 
