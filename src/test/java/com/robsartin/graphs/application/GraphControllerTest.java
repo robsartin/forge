@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.robsartin.graphs.models.Graph;
 import com.robsartin.graphs.models.GraphNode;
 import com.robsartin.graphs.ports.out.GraphRepository;
+import jakarta.persistence.EntityManager;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
