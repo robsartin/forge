@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.robsartin.graphs.models.Graph;
 import com.robsartin.graphs.models.GraphNode;
 import com.robsartin.graphs.ports.out.GraphRepository;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,9 @@ class GraphControllerTest {
 
     @Autowired
     private GraphRepository graphRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @BeforeEach
     void setUp() {
@@ -187,6 +191,95 @@ class GraphControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.name").value("New Node"));
+    }
+
+    // POST /graphs/{id} - create a new node in a graph (alternate endpoint)
+    @Test
+    void shouldCreateNodeViaGraphIdEndpoint() throws Exception {
+        // Create graph via REST endpoint (mimics user's actual flow)
+        String graphResponse = mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        // Extract graph ID from response
+        Integer graphId = objectMapper.readTree(graphResponse).get("id").asInt();
+
+        // Add node via POST /graphs/{id} (the endpoint reported as failing)
+        mockMvc.perform(post("/graphs/" + graphId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"node 1\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.name").value("node 1"));
+    }
+
+    @Test
+    void shouldCreateMultipleNodesViaRestEndpoints() throws Exception {
+        // Create graph via REST
+        String graphResponse = mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer graphId = objectMapper.readTree(graphResponse).get("id").asInt();
+
+        // Add first node
+        mockMvc.perform(post("/graphs/" + graphId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"node 1\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("node 1"));
+
+        // Add second node
+        mockMvc.perform(post("/graphs/" + graphId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"node 2\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("node 2"));
+
+        // Verify both nodes exist
+        mockMvc.perform(get("/graphs/" + graphId + "/nodes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void shouldCreateNodeWithPersistenceContextClearing() throws Exception {
+        // This test simulates separate HTTP requests by clearing the persistence context
+        // This ensures @PostLoad is triggered when the graph is reloaded
+
+        // Create graph via REST
+        String graphResponse = mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer graphId = objectMapper.readTree(graphResponse).get("id").asInt();
+
+        // Flush and clear to simulate end of first HTTP request/transaction
+        entityManager.flush();
+        entityManager.clear();
+
+        // Add node via POST /graphs/{id} - this should trigger @PostLoad when loading the graph
+        mockMvc.perform(post("/graphs/" + graphId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"node 1\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.name").value("node 1"));
+
+        // Verify node was persisted
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(get("/graphs/" + graphId + "/nodes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("node 1"));
     }
 
     @Test
