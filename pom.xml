@@ -25,6 +25,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jmolecules.version>1.10.0</jmolecules.version>
         <archunit.version>1.3.0</archunit.version>
+        <openfeature.version>1.12.0</openfeature.version>
     </properties>
 
     <dependencies>
@@ -51,6 +52,13 @@
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- OpenFeature -->
+        <dependency>
+            <groupId>dev.openfeature</groupId>
+            <artifactId>sdk</artifactId>
+            <version>${openfeature.version}</version>
         </dependency>
 
         <!-- jMolecules -->

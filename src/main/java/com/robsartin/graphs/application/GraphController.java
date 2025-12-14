@@ -1,5 +1,6 @@
 package com.robsartin.graphs.application;
 
+import com.robsartin.graphs.infrastructure.FeatureFlagService;
 import com.robsartin.graphs.models.Graph;
 import com.robsartin.graphs.models.GraphNode;
 import com.robsartin.graphs.ports.out.GraphRepository;
@@ -21,9 +22,11 @@ import java.util.List;
 public class GraphController {
 
     private final GraphRepository graphRepository;
+    private final FeatureFlagService featureFlagService;
 
-    public GraphController(GraphRepository graphRepository) {
+    public GraphController(GraphRepository graphRepository, FeatureFlagService featureFlagService) {
         this.graphRepository = graphRepository;
+        this.featureFlagService = featureFlagService;
     }
 
     /**
@@ -93,10 +96,13 @@ public class GraphController {
      * DELETE /graphs/{id} - Deletes a graph by ID
      *
      * @param id the graph ID to delete
-     * @return 204 No Content if deleted, 404 if not found
+     * @return 204 No Content if deleted, 404 if not found, 403 if delete is disabled
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteGraph(@PathVariable Integer id) {
+        if (!featureFlagService.isDeleteEnabled()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         if (!graphRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }

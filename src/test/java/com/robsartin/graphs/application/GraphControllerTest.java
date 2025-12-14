@@ -1,6 +1,7 @@
 package com.robsartin.graphs.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.robsartin.graphs.config.TestOpenFeatureConfiguration;
 import com.robsartin.graphs.models.Graph;
 import com.robsartin.graphs.models.GraphNode;
 import com.robsartin.graphs.ports.out.GraphRepository;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@Import(TestOpenFeatureConfiguration.class)
 class GraphControllerTest {
 
     @Autowired
