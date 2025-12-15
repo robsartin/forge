@@ -208,25 +208,6 @@ public class GraphController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/{id}")
-    @Operation(summary = "Create a new node (alternative)", description = "Alternative endpoint to create a new node in the specified graph")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Node created successfully",
-                    content = @Content(schema = @Schema(implementation = NodeResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request - name is required", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
-    })
-    @Timed(value = "node.createAlt", description = "Time taken to create a node (alternative endpoint)")
-    @CircuitBreaker(name = "nodeService")
-    @RateLimiter(name = "nodeService")
-    @Retry(name = "nodeService")
-    public ResponseEntity<NodeResponse> createNodeAlt(
-            @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
-            @Valid @RequestBody CreateNodeRequest request) {
-
-        return createNode(id, request);
-    }
-
     /**
      * GET /graphs/{id}/nodes/{nodeId} - Retrieves a specific node by ID with its linked nodes
      *
