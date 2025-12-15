@@ -9,11 +9,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
  * ArchUnit tests enforcing development rules and architectural standards.
- *
  * These tests ensure the codebase adheres to the hexagonal architecture
  * pattern, DDD principles, and project standards.
  */
@@ -41,6 +39,7 @@ class ArchitectureRulesTest {
                     .that().resideInAPackage("com.robsartin.graphs.infrastructure..")
                     .should().onlyDependOnClassesThat().resideInAnyPackage(
                             "java..",
+                            "dev.openfeature..",
                             "com.robsartin.graphs..",
                             "org.springframework..",
                             "org.junit..",
@@ -122,6 +121,7 @@ class ArchitectureRulesTest {
                     .that().resideInAPackage("com.robsartin.graphs.config..")
                     .should().onlyDependOnClassesThat().resideInAnyPackage(
                             "java..",
+                            "dev.openfeature..",
                             "com.robsartin.graphs..",
                             "org.springframework..",
                             "org.jmolecules.."

@@ -69,30 +69,6 @@ public class GraphController {
     }
 
     /**
-     * POST /graphs/{id} - Creates a new node in a graph
-     *
-     * @param id the graph ID
-     * @param request the node creation request
-     * @return the created node with HTTP 201 status, 404 if graph not found
-     */
-    @PostMapping("/{id}")
-    public ResponseEntity<NodeResponse> createNodeInGraph(@PathVariable Integer id,
-                                                          @Valid @RequestBody CreateNodeRequest request) {
-        return graphRepository.findById(id)
-                .map(graph -> {
-                    GraphNode node = graph.addNode(request.name());
-                    Graph savedGraph = graphRepository.save(graph);
-                    GraphNode savedNode = savedGraph.getNodes().stream()
-                            .filter(n -> n.getName().equals(request.name()))
-                            .reduce((first, second) -> second)
-                            .orElse(node);
-                    return ResponseEntity.status(HttpStatus.CREATED)
-                            .body(new NodeResponse(savedNode.getId(), savedNode.getName()));
-                })
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    /**
      * DELETE /graphs/{id} - Deletes a graph by ID
      *
      * @param id the graph ID to delete
@@ -150,6 +126,13 @@ public class GraphController {
                             .body(new NodeResponse(savedNode.getId(), savedNode.getName()));
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}")
+    public ResponseEntity<NodeResponse> createNodeAlt(@PathVariable Integer id,
+                                                   @Valid @RequestBody CreateNodeRequest request) {
+
+        return createNode(id, request);
     }
 
     /**
