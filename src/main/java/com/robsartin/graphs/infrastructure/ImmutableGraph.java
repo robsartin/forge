@@ -86,25 +86,6 @@ public class ImmutableGraph<N, E> {
     }
 
     /**
-     * Add a node with a specific ID and label, returns new graph
-     *
-     * @param nodeId the specific ID to use for this node
-     * @param label the label for the node
-     * @return the new graph containing the added node
-     * @throws IllegalArgumentException if a node with the given ID already exists
-     */
-    public ImmutableGraph<N, E> addNodeWithId(int nodeId, N label) {
-        if (nodes.containsKey(nodeId)) {
-            throw new IllegalArgumentException("Node with ID " + nodeId + " already exists");
-        }
-        Map<Integer, Context<N, E>> newNodes = new HashMap<>(nodes);
-        Context<N, E> context = new Context<>(nodeId, label,
-                                              Collections.emptyMap(), Collections.emptyMap());
-        newNodes.put(nodeId, context);
-        return new ImmutableGraph<>(newNodes, nextNodeId);
-    }
-
-    /**
      * Add an edge between two nodes, returns new graph
      */
     public ImmutableGraph<N, E> addEdge(int fromNode, int toNode, E edgeLabel) {
