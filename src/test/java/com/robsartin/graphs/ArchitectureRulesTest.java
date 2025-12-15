@@ -122,6 +122,8 @@ class ArchitectureRulesTest {
                     .should().onlyDependOnClassesThat().resideInAnyPackage(
                             "java..",
                             "dev.openfeature..",
+                            "io.swagger..",
+                            "io.micrometer..",
                             "com.robsartin.graphs..",
                             "org.springframework..",
                             "org.jmolecules.."
