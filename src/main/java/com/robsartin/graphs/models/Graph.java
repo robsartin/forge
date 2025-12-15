@@ -12,7 +12,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -73,22 +72,46 @@ public class Graph {
         this.immutableGraph = immutableGraph;
     }
 
+    /**
+     * Add a node to the graph. The node is added to the nodes list but NOT
+     * to the ImmutableGraph yet, since the database ID is not available until
+     * after persistence. Call syncImmutableGraph() after saving to add persisted
+     * nodes to the ImmutableGraph.
+     */
     public GraphNode addNode(String nodeName) {
-        ImmutableGraph.GraphWithNode<String, String> result = immutableGraph.addNode(nodeName);
-        this.immutableGraph = result.getGraph();
-        GraphNode node = new GraphNode(nodeName, result.getNodeId());
+        GraphNode node = new GraphNode(nodeName);
         node.setGraph(this);
         this.nodes.add(node);
         return node;
     }
 
+    /**
+     * Synchronize the ImmutableGraph with persisted nodes.
+     * This adds any nodes that have database IDs but are not yet in the ImmutableGraph.
+     */
+    public void syncImmutableGraph() {
+        for (GraphNode node : nodes) {
+            if (node.getId() != null && !immutableGraph.containsNode(node.getId())) {
+                this.immutableGraph = this.immutableGraph.addNodeWithId(node.getId(), node.getName());
+            }
+        }
+    }
+
+    /**
+     * Add an edge between two nodes using their database IDs.
+     * Automatically syncs the ImmutableGraph before adding the edge.
+     */
     public void addEdge(int fromNodeId, int toNodeId) {
+        syncImmutableGraph();
         this.immutableGraph = this.immutableGraph.addEdge(fromNodeId, toNodeId, "edge");
     }
 
-    public GraphNode findNodeByGraphNodeId(int graphNodeId) {
+    /**
+     * Find a node by its database ID.
+     */
+    public GraphNode findNodeById(int nodeId) {
         return nodes.stream()
-                .filter(n -> n.getGraphNodeId() != null && n.getGraphNodeId() == graphNodeId)
+                .filter(n -> n.getId() != null && n.getId() == nodeId)
                 .findFirst()
                 .orElse(null);
     }
@@ -96,13 +119,11 @@ public class Graph {
     @PostLoad
     private void reconstructImmutableGraph() {
         this.immutableGraph = new ImmutableGraph<>();
-        nodes.stream()
-                .filter(n -> n.getGraphNodeId() != null)
-                .sorted(Comparator.comparing(GraphNode::getGraphNodeId))
-                .forEach(node -> {
-                    ImmutableGraph.GraphWithNode<String, String> result = immutableGraph.addNode(node.getName());
-                    this.immutableGraph = result.getGraph();
-                });
+        for (GraphNode node : nodes) {
+            if (node.getId() != null) {
+                this.immutableGraph = this.immutableGraph.addNodeWithId(node.getId(), node.getName());
+            }
+        }
     }
 
     @Override

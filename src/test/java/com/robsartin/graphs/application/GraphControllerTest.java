@@ -161,9 +161,9 @@ class GraphControllerTest {
     @Test
     void shouldReturnAllNodesInGraph() throws Exception {
         Graph graph = new Graph("Test Graph");
-        GraphNode node1 = new GraphNode("Node A", 0);
+        GraphNode node1 = new GraphNode("Node A");
         node1.setGraph(graph);
-        GraphNode node2 = new GraphNode("Node B", 1);
+        GraphNode node2 = new GraphNode("Node B");
         node2.setGraph(graph);
         graph.getNodes().add(node1);
         graph.getNodes().add(node2);
@@ -309,16 +309,14 @@ class GraphControllerTest {
     @Test
     void shouldReturnNodeByIdWithLinks() throws Exception {
         Graph graph = new Graph("Test Graph");
-        GraphNode node = new GraphNode("Node A", 0);
-        node.setGraph(graph);
-        graph.getNodes().add(node);
-        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node A").getGraph());
+        graph.addNode("Node A");
         Graph savedGraph = graphRepository.save(graph);
+        savedGraph.syncImmutableGraph();
         Integer nodeId = savedGraph.getNodes().get(0).getId();
 
         mockMvc.perform(get("/graphs/" + savedGraph.getId() + "/nodes/" + nodeId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.node.graphNodeId").value(0))
+                .andExpect(jsonPath("$.node.id").value(nodeId))
                 .andExpect(jsonPath("$.node.name").value("Node A"))
                 .andExpect(jsonPath("$.toNodes").isArray())
                 .andExpect(jsonPath("$.toNodes.length()").value(0));
@@ -327,28 +325,26 @@ class GraphControllerTest {
     @Test
     void shouldReturnNodeWithLinkedNodes() throws Exception {
         Graph graph = new Graph("Test Graph");
-        GraphNode node1 = new GraphNode("Node A", 0);
-        GraphNode node2 = new GraphNode("Node B", 1);
-        GraphNode node3 = new GraphNode("Node C", 2);
-        node1.setGraph(graph);
-        node2.setGraph(graph);
-        node3.setGraph(graph);
-        graph.getNodes().add(node1);
-        graph.getNodes().add(node2);
-        graph.getNodes().add(node3);
-
-        // Build the immutable graph: A -> B and A -> C
-        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node A").getGraph());
-        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node B").getGraph());
-        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node C").getGraph());
-        graph.setImmutableGraph(graph.getImmutableGraph().addEdge(0, 1, "edge"));
-        graph.setImmutableGraph(graph.getImmutableGraph().addEdge(0, 2, "edge"));
+        graph.addNode("Node A");
+        graph.addNode("Node B");
+        graph.addNode("Node C");
         Graph savedGraph = graphRepository.save(graph);
-        Integer nodeId = savedGraph.getNodes().get(0).getId();
 
-        mockMvc.perform(get("/graphs/" + savedGraph.getId() + "/nodes/" + nodeId))
+        GraphNode nodeA = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node A")).findFirst().orElseThrow();
+        GraphNode nodeB = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node B")).findFirst().orElseThrow();
+        GraphNode nodeC = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node C")).findFirst().orElseThrow();
+
+        // Build the immutable graph: A -> B and A -> C using database IDs
+        savedGraph.addEdge(nodeA.getId(), nodeB.getId());
+        savedGraph.addEdge(nodeA.getId(), nodeC.getId());
+        graphRepository.save(savedGraph);
+
+        mockMvc.perform(get("/graphs/" + savedGraph.getId() + "/nodes/" + nodeA.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.node.graphNodeId").value(0))
+                .andExpect(jsonPath("$.node.id").value(nodeA.getId()))
                 .andExpect(jsonPath("$.node.name").value("Node A"))
                 .andExpect(jsonPath("$.toNodes").isArray())
                 .andExpect(jsonPath("$.toNodes.length()").value(2));
@@ -367,17 +363,16 @@ class GraphControllerTest {
     @Test
     void shouldAddEdgeBetweenNodes() throws Exception {
         Graph graph = new Graph("Test Graph");
-        GraphNode node1 = new GraphNode("Node A", 0);
-        node1.setGraph(graph);
-        GraphNode node2 = new GraphNode("Node B", 1);
-        node2.setGraph(graph);
-        graph.getNodes().add(node1);
-        graph.getNodes().add(node2);
-        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node A").getGraph());
-        graph.setImmutableGraph(graph.getImmutableGraph().addNode("Node B").getGraph());
+        graph.addNode("Node A");
+        graph.addNode("Node B");
         Graph savedGraph = graphRepository.save(graph);
 
-        mockMvc.perform(post("/graphs/" + savedGraph.getId() + "/nodes/0/1"))
+        GraphNode nodeA = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node A")).findFirst().orElseThrow();
+        GraphNode nodeB = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node B")).findFirst().orElseThrow();
+
+        mockMvc.perform(post("/graphs/" + savedGraph.getId() + "/nodes/" + nodeA.getId() + "/" + nodeB.getId()))
                 .andExpect(status().isOk());
     }
 
@@ -391,28 +386,24 @@ class GraphControllerTest {
     @Test
     void shouldPerformDepthFirstSearch() throws Exception {
         Graph graph = new Graph("Test Graph");
-        GraphNode node1 = new GraphNode("Node A", 0);
-        GraphNode node2 = new GraphNode("Node B", 1);
-        GraphNode node3 = new GraphNode("Node C", 2);
-        node1.setGraph(graph);
-        node2.setGraph(graph);
-        node3.setGraph(graph);
-        graph.getNodes().add(node1);
-        graph.getNodes().add(node2);
-        graph.getNodes().add(node3);
-
-        // Build the immutable graph: A -> B -> C
-        var result1 = graph.getImmutableGraph().addNode("Node A");
-        graph.setImmutableGraph(result1.getGraph());
-        var result2 = graph.getImmutableGraph().addNode("Node B");
-        graph.setImmutableGraph(result2.getGraph());
-        var result3 = graph.getImmutableGraph().addNode("Node C");
-        graph.setImmutableGraph(result3.getGraph());
-        graph.setImmutableGraph(graph.getImmutableGraph().addEdge(0, 1, "edge"));
-        graph.setImmutableGraph(graph.getImmutableGraph().addEdge(1, 2, "edge"));
+        graph.addNode("Node A");
+        graph.addNode("Node B");
+        graph.addNode("Node C");
         Graph savedGraph = graphRepository.save(graph);
 
-        mockMvc.perform(get("/graphs/" + savedGraph.getId() + "/dfs/0"))
+        GraphNode nodeA = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node A")).findFirst().orElseThrow();
+        GraphNode nodeB = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node B")).findFirst().orElseThrow();
+        GraphNode nodeC = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node C")).findFirst().orElseThrow();
+
+        // Build the immutable graph: A -> B -> C using database IDs
+        savedGraph.addEdge(nodeA.getId(), nodeB.getId());
+        savedGraph.addEdge(nodeB.getId(), nodeC.getId());
+        graphRepository.save(savedGraph);
+
+        mockMvc.perform(get("/graphs/" + savedGraph.getId() + "/dfs/" + nodeA.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(3));
@@ -428,28 +419,24 @@ class GraphControllerTest {
     @Test
     void shouldPerformBreadthFirstSearch() throws Exception {
         Graph graph = new Graph("Test Graph");
-        GraphNode node1 = new GraphNode("Node A", 0);
-        GraphNode node2 = new GraphNode("Node B", 1);
-        GraphNode node3 = new GraphNode("Node C", 2);
-        node1.setGraph(graph);
-        node2.setGraph(graph);
-        node3.setGraph(graph);
-        graph.getNodes().add(node1);
-        graph.getNodes().add(node2);
-        graph.getNodes().add(node3);
-
-        // Build the immutable graph: A -> B -> C
-        var result1 = graph.getImmutableGraph().addNode("Node A");
-        graph.setImmutableGraph(result1.getGraph());
-        var result2 = graph.getImmutableGraph().addNode("Node B");
-        graph.setImmutableGraph(result2.getGraph());
-        var result3 = graph.getImmutableGraph().addNode("Node C");
-        graph.setImmutableGraph(result3.getGraph());
-        graph.setImmutableGraph(graph.getImmutableGraph().addEdge(0, 1, "edge"));
-        graph.setImmutableGraph(graph.getImmutableGraph().addEdge(1, 2, "edge"));
+        graph.addNode("Node A");
+        graph.addNode("Node B");
+        graph.addNode("Node C");
         Graph savedGraph = graphRepository.save(graph);
 
-        mockMvc.perform(get("/graphs/" + savedGraph.getId() + "/bfs/0"))
+        GraphNode nodeA = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node A")).findFirst().orElseThrow();
+        GraphNode nodeB = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node B")).findFirst().orElseThrow();
+        GraphNode nodeC = savedGraph.getNodes().stream()
+                .filter(n -> n.getName().equals("Node C")).findFirst().orElseThrow();
+
+        // Build the immutable graph: A -> B -> C using database IDs
+        savedGraph.addEdge(nodeA.getId(), nodeB.getId());
+        savedGraph.addEdge(nodeB.getId(), nodeC.getId());
+        graphRepository.save(savedGraph);
+
+        mockMvc.perform(get("/graphs/" + savedGraph.getId() + "/bfs/" + nodeA.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(3));
@@ -459,5 +446,163 @@ class GraphControllerTest {
     void shouldReturn404WhenBFSOnNonExistentGraph() throws Exception {
         mockMvc.perform(get("/graphs/999/bfs/0"))
                 .andExpect(status().isNotFound());
+    }
+
+    // Tests for unified node ID (database ID = graph node ID)
+
+    @Test
+    void shouldAddEdgeUsingDatabaseNodeIds() throws Exception {
+        // Create graph via REST
+        String graphResponse = mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        int graphId = objectMapper.readTree(graphResponse).get("id").asInt();
+
+        // Add first node and get its database ID
+        String node1Response = mockMvc.perform(post("/graphs/" + graphId + "/nodes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node A\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        int nodeADbId = objectMapper.readTree(node1Response).get("id").asInt();
+
+        // Add second node and get its database ID
+        String node2Response = mockMvc.perform(post("/graphs/" + graphId + "/nodes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node B\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        int nodeBDbId = objectMapper.readTree(node2Response).get("id").asInt();
+
+        // Add edge using database IDs (not sequential 0, 1)
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeADbId + "/" + nodeBDbId))
+                .andExpect(status().isOk());
+
+        // Verify the edge was created by getting node A with links
+        mockMvc.perform(get("/graphs/" + graphId + "/nodes/" + nodeADbId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.node.id").value(nodeADbId))
+                .andExpect(jsonPath("$.toNodes.length()").value(1))
+                .andExpect(jsonPath("$.toNodes[0].id").value(nodeBDbId));
+    }
+
+    @Test
+    void shouldPerformDFSUsingDatabaseNodeId() throws Exception {
+        // Create graph via REST
+        String graphResponse = mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        int graphId = objectMapper.readTree(graphResponse).get("id").asInt();
+
+        // Add nodes
+        String node1Response = mockMvc.perform(post("/graphs/" + graphId + "/nodes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node A\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        int nodeADbId = objectMapper.readTree(node1Response).get("id").asInt();
+
+        String node2Response = mockMvc.perform(post("/graphs/" + graphId + "/nodes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node B\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        int nodeBDbId = objectMapper.readTree(node2Response).get("id").asInt();
+
+        String node3Response = mockMvc.perform(post("/graphs/" + graphId + "/nodes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node C\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        int nodeCDbId = objectMapper.readTree(node3Response).get("id").asInt();
+
+        // Add edges: A -> B -> C
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeADbId + "/" + nodeBDbId))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeBDbId + "/" + nodeCDbId))
+                .andExpect(status().isOk());
+
+        // Perform DFS starting from Node A using its database ID
+        mockMvc.perform(get("/graphs/" + graphId + "/dfs/" + nodeADbId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].name").value("Node A"))
+                .andExpect(jsonPath("$[1].name").value("Node B"))
+                .andExpect(jsonPath("$[2].name").value("Node C"));
+    }
+
+    @Test
+    void shouldPerformBFSUsingDatabaseNodeId() throws Exception {
+        // Create graph via REST
+        String graphResponse = mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        int graphId = objectMapper.readTree(graphResponse).get("id").asInt();
+
+        // Add nodes
+        String node1Response = mockMvc.perform(post("/graphs/" + graphId + "/nodes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node A\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        int nodeADbId = objectMapper.readTree(node1Response).get("id").asInt();
+
+        String node2Response = mockMvc.perform(post("/graphs/" + graphId + "/nodes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node B\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        int nodeBDbId = objectMapper.readTree(node2Response).get("id").asInt();
+
+        // Add edges: A -> B
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeADbId + "/" + nodeBDbId))
+                .andExpect(status().isOk());
+
+        // Perform BFS starting from Node A using its database ID
+        mockMvc.perform(get("/graphs/" + graphId + "/bfs/" + nodeADbId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("Node A"))
+                .andExpect(jsonPath("$[1].name").value("Node B"));
+    }
+
+    @Test
+    void shouldReturnNodeInfoWithDatabaseIdInsteadOfGraphNodeId() throws Exception {
+        // Create graph via REST
+        String graphResponse = mockMvc.perform(post("/graphs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        int graphId = objectMapper.readTree(graphResponse).get("id").asInt();
+
+        // Add a node
+        String nodeResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node A\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        int nodeDbId = objectMapper.readTree(nodeResponse).get("id").asInt();
+
+        // Get node by ID - the response should use 'id' field (database ID), not 'graphNodeId'
+        mockMvc.perform(get("/graphs/" + graphId + "/nodes/" + nodeDbId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.node.id").value(nodeDbId))
+                .andExpect(jsonPath("$.node.name").value("Node A"));
     }
 }

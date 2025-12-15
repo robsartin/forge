@@ -212,7 +212,7 @@ public class GraphController {
      * GET /graphs/{id}/nodes/{nodeId} - Retrieves a specific node by ID with its linked nodes
      *
      * @param id the graph ID
-     * @param nodeId the node ID
+     * @param nodeId the node database ID
      * @return the node with its linked nodes if found, 404 if not found
      */
     @GetMapping("/{id}/nodes/{nodeId}")
@@ -228,22 +228,22 @@ public class GraphController {
     @Retry(name = "nodeService")
     public ResponseEntity<NodeWithLinksResponse> getNodeById(
             @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
-            @Parameter(description = "Node ID", required = true) @PathVariable Integer nodeId) {
+            @Parameter(description = "Node database ID", required = true) @PathVariable Integer nodeId) {
         return graphRepository.findById(id)
                 .flatMap(graph -> graph.getNodes().stream()
                         .filter(n -> n.getId().equals(nodeId))
                         .findFirst()
                         .map(node -> {
-                            NodeInfoResponse nodeInfo = new NodeInfoResponse(node.getGraphNodeId(), node.getName());
+                            NodeInfoResponse nodeInfo = new NodeInfoResponse(node.getId(), node.getName());
                             List<NodeInfoResponse> toNodes = new ArrayList<>();
 
-                            if (node.getGraphNodeId() != null) {
-                                var context = graph.getImmutableGraph().getContext(node.getGraphNodeId());
+                            if (node.getId() != null) {
+                                var context = graph.getImmutableGraph().getContext(node.getId());
                                 if (context != null) {
                                     for (Integer successorId : context.getSuccessors().keySet()) {
-                                        GraphNode linkedNode = graph.findNodeByGraphNodeId(successorId);
+                                        GraphNode linkedNode = graph.findNodeById(successorId);
                                         if (linkedNode != null) {
-                                            toNodes.add(new NodeInfoResponse(linkedNode.getGraphNodeId(), linkedNode.getName()));
+                                            toNodes.add(new NodeInfoResponse(linkedNode.getId(), linkedNode.getName()));
                                         }
                                     }
                                 }
@@ -258,8 +258,8 @@ public class GraphController {
      * POST /graphs/{id}/nodes/{fromId}/{toId} - Adds an edge between two nodes
      *
      * @param id the graph ID
-     * @param fromId the source node graph node ID
-     * @param toId the target node graph node ID
+     * @param fromId the source node database ID
+     * @param toId the target node database ID
      * @return 200 OK if edge added, 404 if graph not found, 400 if nodes not found
      */
     @PostMapping("/{id}/nodes/{fromId}/{toId}")
@@ -275,17 +275,17 @@ public class GraphController {
     @Retry(name = "nodeService")
     public ResponseEntity<Void> addEdge(
             @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
-            @Parameter(description = "Source node graph node ID", required = true) @PathVariable Integer fromId,
-            @Parameter(description = "Target node graph node ID", required = true) @PathVariable Integer toId) {
+            @Parameter(description = "Source node database ID", required = true) @PathVariable Integer fromId,
+            @Parameter(description = "Target node database ID", required = true) @PathVariable Integer toId) {
         return graphRepository.findById(id)
                 .map(graph -> {
-                    // Find nodes by graphNodeId
+                    // Find nodes by database ID
                     GraphNode fromNode = graph.getNodes().stream()
-                            .filter(n -> n.getGraphNodeId().equals(fromId))
+                            .filter(n -> n.getId().equals(fromId))
                             .findFirst()
                             .orElse(null);
                     GraphNode toNode = graph.getNodes().stream()
-                            .filter(n -> n.getGraphNodeId().equals(toId))
+                            .filter(n -> n.getId().equals(toId))
                             .findFirst()
                             .orElse(null);
 
@@ -293,7 +293,7 @@ public class GraphController {
                         throw new IllegalArgumentException("Both nodes must exist in the graph");
                     }
 
-                    graph.addEdge(fromNode.getGraphNodeId(), toNode.getGraphNodeId());
+                    graph.addEdge(fromNode.getId(), toNode.getId());
                     graphRepository.save(graph);
                     return ResponseEntity.ok().<Void>build();
                 })
@@ -304,7 +304,7 @@ public class GraphController {
      * GET /graphs/{id}/dfs/{nodeId} - Performs depth-first search from a node
      *
      * @param id the graph ID
-     * @param nodeId the starting node graph ID
+     * @param nodeId the starting node database ID
      * @return list of nodes visited in DFS order
      */
     @GetMapping("/{id}/dfs/{nodeId}")
@@ -320,12 +320,12 @@ public class GraphController {
     @Retry(name = "traversalService")
     public ResponseEntity<List<NodeResponse>> depthFirstSearch(
             @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
-            @Parameter(description = "Starting node graph ID for traversal", required = true) @PathVariable Integer nodeId) {
+            @Parameter(description = "Starting node database ID for traversal", required = true) @PathVariable Integer nodeId) {
         return graphRepository.findById(id)
                 .map(graph -> {
                     List<NodeResponse> visited = new ArrayList<>();
                     graph.getImmutableGraph().depthFirstTraversal(nodeId, context -> {
-                        GraphNode node = graph.findNodeByGraphNodeId(context.getNodeId());
+                        GraphNode node = graph.findNodeById(context.getNodeId());
                         if (node != null) {
                             visited.add(new NodeResponse(node.getId(), node.getName()));
                         } else {
@@ -341,7 +341,7 @@ public class GraphController {
      * GET /graphs/{id}/bfs/{nodeId} - Performs breadth-first search from a node
      *
      * @param id the graph ID
-     * @param nodeId the starting node graph ID
+     * @param nodeId the starting node database ID
      * @return list of nodes visited in BFS order
      */
     @GetMapping("/{id}/bfs/{nodeId}")
@@ -357,12 +357,12 @@ public class GraphController {
     @Retry(name = "traversalService")
     public ResponseEntity<List<NodeResponse>> breadthFirstSearch(
             @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
-            @Parameter(description = "Starting node graph ID for traversal", required = true) @PathVariable Integer nodeId) {
+            @Parameter(description = "Starting node database ID for traversal", required = true) @PathVariable Integer nodeId) {
         return graphRepository.findById(id)
                 .map(graph -> {
                     List<NodeResponse> visited = new ArrayList<>();
                     graph.getImmutableGraph().breadthFirstTraversal(nodeId, context -> {
-                        GraphNode node = graph.findNodeByGraphNodeId(context.getNodeId());
+                        GraphNode node = graph.findNodeById(context.getNodeId());
                         if (node != null) {
                             visited.add(new NodeResponse(node.getId(), node.getName()));
                         } else {
@@ -415,12 +415,12 @@ public class GraphController {
     }
 
     /**
-     * Response DTO for node info with graphNodeId
+     * Response DTO for node info
      */
-    @Schema(description = "Node information including internal graph node ID")
+    @Schema(description = "Node information including database ID")
     public record NodeInfoResponse(
-            @Schema(description = "Internal graph node identifier used for edges and traversals", example = "0")
-            Integer graphNodeId,
+            @Schema(description = "Database ID of the node used for edges and traversals", example = "1")
+            Integer id,
             @Schema(description = "Name of the node", example = "Node A")
             String name) {
     }

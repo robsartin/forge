@@ -20,8 +20,6 @@ public class GraphNode {
 
     private String name;
 
-    private Integer graphNodeId;
-
     @ManyToOne
     @JoinColumn(name = "graph_id")
     private Graph graph;
@@ -32,11 +30,6 @@ public class GraphNode {
 
     public GraphNode(String name) {
         this.name = name;
-    }
-
-    public GraphNode(String name, Integer graphNodeId) {
-        this.name = name;
-        this.graphNodeId = graphNodeId;
     }
 
     public Integer getId() {
@@ -53,14 +46,6 @@ public class GraphNode {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public Integer getGraphNodeId() {
-        return graphNodeId;
-    }
-
-    public void setGraphNodeId(Integer graphNodeId) {
-        this.graphNodeId = graphNodeId;
     }
 
     public Graph getGraph() {
@@ -89,7 +74,6 @@ public class GraphNode {
         return "GraphNode{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
-                ", graphNodeId=" + graphNodeId +
                 '}';
     }
 }
