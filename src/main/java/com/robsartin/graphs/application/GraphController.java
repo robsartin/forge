@@ -4,6 +4,18 @@ import com.robsartin.graphs.infrastructure.FeatureFlagService;
 import com.robsartin.graphs.models.Graph;
 import com.robsartin.graphs.models.GraphNode;
 import com.robsartin.graphs.ports.out.GraphRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.micrometer.core.annotation.Timed;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
@@ -19,6 +31,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/graphs")
+@Tag(name = "Graphs", description = "Graph management API for creating, querying, and manipulating graphs")
 public class GraphController {
 
     private final GraphRepository graphRepository;
@@ -35,6 +48,15 @@ public class GraphController {
      * @return list of all graphs (id and name)
      */
     @GetMapping
+    @Operation(summary = "Get all graphs", description = "Retrieves a list of all graphs with their IDs and names")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved list of graphs",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = GraphSummaryResponse.class))))
+    })
+    @Timed(value = "graph.getAll", description = "Time taken to retrieve all graphs")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
     public List<GraphSummaryResponse> getAllGraphs() {
         return graphRepository.findAll().stream()
                 .map(g -> new GraphSummaryResponse(g.getId(), g.getName()))
@@ -48,7 +70,18 @@ public class GraphController {
      * @return the graph if found, 404 if not found
      */
     @GetMapping("/{id}")
-    public ResponseEntity<GraphSummaryResponse> getGraphById(@PathVariable Integer id) {
+    @Operation(summary = "Get graph by ID", description = "Retrieves a specific graph by its unique identifier")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Graph found",
+                    content = @Content(schema = @Schema(implementation = GraphSummaryResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "graph.getById", description = "Time taken to retrieve a graph by ID")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
+    public ResponseEntity<GraphSummaryResponse> getGraphById(
+            @Parameter(description = "Graph ID", required = true) @PathVariable Integer id) {
         return graphRepository.findById(id)
                 .map(g -> ResponseEntity.ok(new GraphSummaryResponse(g.getId(), g.getName())))
                 .orElse(ResponseEntity.notFound().build());
@@ -62,7 +95,22 @@ public class GraphController {
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public GraphSummaryResponse createGraph(@Valid @RequestBody CreateGraphRequest request) {
+    @Operation(summary = "Create a new graph", description = "Creates a new graph with the specified name")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Graph created successfully",
+                    content = @Content(schema = @Schema(implementation = GraphSummaryResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request - name is required", content = @Content)
+    })
+    @Timed(value = "graph.create", description = "Time taken to create a graph")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
+    public GraphSummaryResponse createGraph(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Graph creation request",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = CreateGraphRequest.class)))
+            @Valid @RequestBody CreateGraphRequest request) {
         Graph graph = new Graph(request.name());
         Graph savedGraph = graphRepository.save(graph);
         return new GraphSummaryResponse(savedGraph.getId(), savedGraph.getName());
@@ -75,7 +123,18 @@ public class GraphController {
      * @return 204 No Content if deleted, 404 if not found, 403 if delete is disabled
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteGraph(@PathVariable Integer id) {
+    @Operation(summary = "Delete a graph", description = "Deletes a graph by its ID. Requires delete feature flag to be enabled")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Graph deleted successfully"),
+            @ApiResponse(responseCode = "403", description = "Delete operation is disabled via feature flag"),
+            @ApiResponse(responseCode = "404", description = "Graph not found")
+    })
+    @Timed(value = "graph.delete", description = "Time taken to delete a graph")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
+    public ResponseEntity<Void> deleteGraph(
+            @Parameter(description = "Graph ID to delete", required = true) @PathVariable Integer id) {
         if (!featureFlagService.isDeleteEnabled()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
@@ -93,7 +152,18 @@ public class GraphController {
      * @return list of all nodes in the graph
      */
     @GetMapping("/{id}/nodes")
-    public ResponseEntity<List<NodeResponse>> getAllNodes(@PathVariable Integer id) {
+    @Operation(summary = "Get all nodes in a graph", description = "Retrieves all nodes belonging to a specific graph")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved nodes",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = NodeResponse.class)))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "node.getAll", description = "Time taken to retrieve all nodes in a graph")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<List<NodeResponse>> getAllNodes(
+            @Parameter(description = "Graph ID", required = true) @PathVariable Integer id) {
         return graphRepository.findById(id)
                 .map(graph -> {
                     List<NodeResponse> nodes = graph.getNodes().stream()
@@ -112,8 +182,24 @@ public class GraphController {
      * @return the created node with HTTP 201 status
      */
     @PostMapping("/{id}/nodes")
-    public ResponseEntity<NodeResponse> createNode(@PathVariable Integer id,
-                                                   @Valid @RequestBody CreateNodeRequest request) {
+    @Operation(summary = "Create a new node", description = "Creates a new node in the specified graph")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Node created successfully",
+                    content = @Content(schema = @Schema(implementation = NodeResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request - name is required", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "node.create", description = "Time taken to create a node")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<NodeResponse> createNode(
+            @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Node creation request",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = CreateNodeRequest.class)))
+            @Valid @RequestBody CreateNodeRequest request) {
         return graphRepository.findById(id)
                 .map(graph -> {
                     GraphNode node = graph.addNode(request.name());
@@ -129,8 +215,20 @@ public class GraphController {
     }
 
     @PostMapping("/{id}")
-    public ResponseEntity<NodeResponse> createNodeAlt(@PathVariable Integer id,
-                                                   @Valid @RequestBody CreateNodeRequest request) {
+    @Operation(summary = "Create a new node (alternative)", description = "Alternative endpoint to create a new node in the specified graph")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Node created successfully",
+                    content = @Content(schema = @Schema(implementation = NodeResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request - name is required", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "node.createAlt", description = "Time taken to create a node (alternative endpoint)")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<NodeResponse> createNodeAlt(
+            @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
+            @Valid @RequestBody CreateNodeRequest request) {
 
         return createNode(id, request);
     }
@@ -143,8 +241,19 @@ public class GraphController {
      * @return the node with its linked nodes if found, 404 if not found
      */
     @GetMapping("/{id}/nodes/{nodeId}")
-    public ResponseEntity<NodeWithLinksResponse> getNodeById(@PathVariable Integer id,
-                                                              @PathVariable Integer nodeId) {
+    @Operation(summary = "Get node by ID with links", description = "Retrieves a specific node along with its connected successor nodes")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Node found with linked nodes",
+                    content = @Content(schema = @Schema(implementation = NodeWithLinksResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph or node not found", content = @Content)
+    })
+    @Timed(value = "node.getById", description = "Time taken to retrieve a node by ID")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<NodeWithLinksResponse> getNodeById(
+            @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
+            @Parameter(description = "Node ID", required = true) @PathVariable Integer nodeId) {
         return graphRepository.findById(id)
                 .flatMap(graph -> graph.getNodes().stream()
                         .filter(n -> n.getId().equals(nodeId))
@@ -179,9 +288,20 @@ public class GraphController {
      * @return 200 OK if edge added, 404 if graph not found, 400 if nodes not found
      */
     @PostMapping("/{id}/nodes/{fromId}/{toId}")
-    public ResponseEntity<Void> addEdge(@PathVariable Integer id,
-                                        @PathVariable Integer fromId,
-                                        @PathVariable Integer toId) {
+    @Operation(summary = "Add edge between nodes", description = "Creates a directed edge from one node to another in the specified graph")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Edge added successfully"),
+            @ApiResponse(responseCode = "400", description = "One or both nodes not found in the graph"),
+            @ApiResponse(responseCode = "404", description = "Graph not found")
+    })
+    @Timed(value = "edge.add", description = "Time taken to add an edge")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<Void> addEdge(
+            @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
+            @Parameter(description = "Source node graph node ID", required = true) @PathVariable Integer fromId,
+            @Parameter(description = "Target node graph node ID", required = true) @PathVariable Integer toId) {
         return graphRepository.findById(id)
                 .map(graph -> {
                     // Find nodes by graphNodeId
@@ -213,8 +333,19 @@ public class GraphController {
      * @return list of nodes visited in DFS order
      */
     @GetMapping("/{id}/dfs/{nodeId}")
-    public ResponseEntity<List<NodeResponse>> depthFirstSearch(@PathVariable Integer id,
-                                                               @PathVariable Integer nodeId) {
+    @Operation(summary = "Depth-first search", description = "Performs a depth-first traversal of the graph starting from the specified node")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "DFS completed successfully",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = NodeResponse.class)))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "traversal.dfs", description = "Time taken to perform depth-first search")
+    @CircuitBreaker(name = "traversalService")
+    @RateLimiter(name = "traversalService")
+    @Retry(name = "traversalService")
+    public ResponseEntity<List<NodeResponse>> depthFirstSearch(
+            @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
+            @Parameter(description = "Starting node graph ID for traversal", required = true) @PathVariable Integer nodeId) {
         return graphRepository.findById(id)
                 .map(graph -> {
                     List<NodeResponse> visited = new ArrayList<>();
@@ -239,8 +370,19 @@ public class GraphController {
      * @return list of nodes visited in BFS order
      */
     @GetMapping("/{id}/bfs/{nodeId}")
-    public ResponseEntity<List<NodeResponse>> breadthFirstSearch(@PathVariable Integer id,
-                                                                 @PathVariable Integer nodeId) {
+    @Operation(summary = "Breadth-first search", description = "Performs a breadth-first traversal of the graph starting from the specified node")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "BFS completed successfully",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = NodeResponse.class)))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "traversal.bfs", description = "Time taken to perform breadth-first search")
+    @CircuitBreaker(name = "traversalService")
+    @RateLimiter(name = "traversalService")
+    @Retry(name = "traversalService")
+    public ResponseEntity<List<NodeResponse>> breadthFirstSearch(
+            @Parameter(description = "Graph ID", required = true) @PathVariable Integer id,
+            @Parameter(description = "Starting node graph ID for traversal", required = true) @PathVariable Integer nodeId) {
         return graphRepository.findById(id)
                 .map(graph -> {
                     List<NodeResponse> visited = new ArrayList<>();
@@ -260,36 +402,62 @@ public class GraphController {
     /**
      * Request DTO for creating a graph
      */
-    public record CreateGraphRequest(@NotBlank(message = "Name is required") String name) {
+    @Schema(description = "Request body for creating a new graph")
+    public record CreateGraphRequest(
+            @Schema(description = "Name of the graph", example = "My Graph", requiredMode = Schema.RequiredMode.REQUIRED)
+            @NotBlank(message = "Name is required") String name) {
     }
 
     /**
      * Request DTO for creating a node
      */
-    public record CreateNodeRequest(@NotBlank(message = "Name is required") String name) {
+    @Schema(description = "Request body for creating a new node")
+    public record CreateNodeRequest(
+            @Schema(description = "Name of the node", example = "Node A", requiredMode = Schema.RequiredMode.REQUIRED)
+            @NotBlank(message = "Name is required") String name) {
     }
 
     /**
      * Response DTO for graph summary
      */
-    public record GraphSummaryResponse(Integer id, String name) {
+    @Schema(description = "Summary information about a graph")
+    public record GraphSummaryResponse(
+            @Schema(description = "Unique identifier of the graph", example = "1")
+            Integer id,
+            @Schema(description = "Name of the graph", example = "My Graph")
+            String name) {
     }
 
     /**
      * Response DTO for node
      */
-    public record NodeResponse(Integer id, String name) {
+    @Schema(description = "Basic information about a node")
+    public record NodeResponse(
+            @Schema(description = "Database ID of the node", example = "1")
+            Integer id,
+            @Schema(description = "Name of the node", example = "Node A")
+            String name) {
     }
 
     /**
      * Response DTO for node info with graphNodeId
      */
-    public record NodeInfoResponse(Integer graphNodeId, String name) {
+    @Schema(description = "Node information including internal graph node ID")
+    public record NodeInfoResponse(
+            @Schema(description = "Internal graph node identifier used for edges and traversals", example = "0")
+            Integer graphNodeId,
+            @Schema(description = "Name of the node", example = "Node A")
+            String name) {
     }
 
     /**
      * Response DTO for node with its linked nodes
      */
-    public record NodeWithLinksResponse(NodeInfoResponse node, List<NodeInfoResponse> toNodes) {
+    @Schema(description = "Node with its outgoing edge connections")
+    public record NodeWithLinksResponse(
+            @Schema(description = "The requested node")
+            NodeInfoResponse node,
+            @Schema(description = "List of nodes connected via outgoing edges")
+            List<NodeInfoResponse> toNodes) {
     }
 }
