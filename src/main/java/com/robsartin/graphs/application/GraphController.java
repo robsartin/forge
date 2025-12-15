@@ -1,6 +1,5 @@
 package com.robsartin.graphs.application;
 
-import com.robsartin.graphs.infrastructure.FeatureFlagService;
 import com.robsartin.graphs.models.Graph;
 import com.robsartin.graphs.models.GraphNode;
 import com.robsartin.graphs.ports.out.GraphRepository;
@@ -35,11 +34,9 @@ import java.util.List;
 public class GraphController {
 
     private final GraphRepository graphRepository;
-    private final FeatureFlagService featureFlagService;
 
-    public GraphController(GraphRepository graphRepository, FeatureFlagService featureFlagService) {
+    public GraphController(GraphRepository graphRepository) {
         this.graphRepository = graphRepository;
-        this.featureFlagService = featureFlagService;
     }
 
     /**
@@ -135,9 +132,6 @@ public class GraphController {
     @Retry(name = "graphService")
     public ResponseEntity<Void> deleteGraph(
             @Parameter(description = "Graph ID to delete", required = true) @PathVariable Integer id) {
-        if (!featureFlagService.isDeleteEnabled()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
         if (!graphRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }

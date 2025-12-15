@@ -139,7 +139,7 @@ class GraphControllerTest {
         assert graphRepository.findAll().get(0).getName().equals("Test Graph");
     }
 
-    /*// DELETE /graphs/{id} - delete graph by id
+    // DELETE /graphs/{id} - delete graph by id
     @Test
     void shouldDeleteGraphById() throws Exception {
         Graph graph = new Graph("Test Graph");
@@ -149,13 +149,13 @@ class GraphControllerTest {
                 .andExpect(status().isNoContent());
 
         assert graphRepository.findById(savedGraph.getId()).isEmpty();
-    }*/
+    }
 
-/*    @Test
+    @Test
     void shouldReturn404WhenDeletingNonExistentGraph() throws Exception {
         mockMvc.perform(delete("/graphs/999"))
                 .andExpect(status().isNotFound());
-    }*/
+    }
 
     // GET /graphs/{id}/nodes - list all nodes in a graph
     @Test
