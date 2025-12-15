@@ -187,6 +187,96 @@ class ImmutableGraphTest {
         assertTrue(contextA.getSuccessors().containsKey(nodeB));
     }
 
+    @Test
+    @DisplayName("Add node with specific ID")
+    void testAddNodeWithSpecificId() {
+        ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();
+
+        // Add node with specific ID 42
+        ImmutableGraph<String, Integer> g1 = g0.addNodeWithId(42, "A");
+
+        assertEquals(1, g1.nodeCount());
+        assertTrue(g1.containsNode(42));
+        assertEquals("A", g1.getContext(42).getLabel());
+
+        // Original graph unchanged
+        assertEquals(0, g0.nodeCount());
+    }
+
+    @Test
+    @DisplayName("Add multiple nodes with specific IDs")
+    void testAddMultipleNodesWithSpecificIds() {
+        ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();
+
+        ImmutableGraph<String, Integer> g1 = g0.addNodeWithId(100, "A");
+        ImmutableGraph<String, Integer> g2 = g1.addNodeWithId(200, "B");
+        ImmutableGraph<String, Integer> g3 = g2.addNodeWithId(150, "C");
+
+        assertEquals(3, g3.nodeCount());
+        assertTrue(g3.containsNode(100));
+        assertTrue(g3.containsNode(200));
+        assertTrue(g3.containsNode(150));
+        assertEquals("A", g3.getContext(100).getLabel());
+        assertEquals("B", g3.getContext(200).getLabel());
+        assertEquals("C", g3.getContext(150).getLabel());
+    }
+
+    @Test
+    @DisplayName("Add edges between nodes with specific IDs")
+    void testAddEdgesBetweenNodesWithSpecificIds() {
+        ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();
+
+        ImmutableGraph<String, Integer> g1 = g0.addNodeWithId(100, "A");
+        ImmutableGraph<String, Integer> g2 = g1.addNodeWithId(200, "B");
+        ImmutableGraph<String, Integer> g3 = g2.addEdge(100, 200, 10);
+
+        var contextA = g3.getContext(100);
+        var contextB = g3.getContext(200);
+
+        assertTrue(contextA.getSuccessors().containsKey(200));
+        assertEquals(10, contextA.getSuccessors().get(200));
+        assertTrue(contextB.getPredecessors().containsKey(100));
+    }
+
+    @Test
+    @DisplayName("Traversals work with nodes added with specific IDs")
+    void testTraversalsWithSpecificNodeIds() {
+        ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();
+
+        ImmutableGraph<String, Integer> g1 = g0.addNodeWithId(100, "A");
+        ImmutableGraph<String, Integer> g2 = g1.addNodeWithId(200, "B");
+        ImmutableGraph<String, Integer> g3 = g2.addNodeWithId(300, "C");
+        ImmutableGraph<String, Integer> g4 = g3.addEdge(100, 200, 1);
+        ImmutableGraph<String, Integer> g5 = g4.addEdge(200, 300, 2);
+
+        List<String> dfsVisited = new ArrayList<>();
+        g5.depthFirstTraversal(100, ctx -> dfsVisited.add(ctx.getLabel()));
+
+        assertEquals(3, dfsVisited.size());
+        assertEquals("A", dfsVisited.get(0));
+        assertEquals("B", dfsVisited.get(1));
+        assertEquals("C", dfsVisited.get(2));
+
+        List<String> bfsVisited = new ArrayList<>();
+        g5.breadthFirstTraversal(100, ctx -> bfsVisited.add(ctx.getLabel()));
+
+        assertEquals(3, bfsVisited.size());
+        assertEquals("A", bfsVisited.get(0));
+        assertEquals("B", bfsVisited.get(1));
+        assertEquals("C", bfsVisited.get(2));
+    }
+
+    @Test
+    @DisplayName("Adding duplicate node ID should throw exception")
+    void testAddDuplicateNodeIdThrowsException() {
+        ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();
+        ImmutableGraph<String, Integer> g1 = g0.addNodeWithId(42, "A");
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            g1.addNodeWithId(42, "B");
+        });
+    }
+
     /**
      * Build a test graph:
      *     A -> B -> D
