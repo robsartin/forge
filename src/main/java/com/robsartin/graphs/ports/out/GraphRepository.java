@@ -54,4 +54,9 @@ public interface GraphRepository {
      * Deletes all graphs from the repository.
      */
     void deleteAll();
+
+    /**
+     * Flush repository changes to the database.
+     */
+    default void flush() {}
 }
