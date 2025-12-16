@@ -35,10 +35,13 @@ jmolecules:
 
 # Logging
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId:-no-correlation-id}] %-5level %logger{36} - %msg%n"
   level:
     org.hibernate.SQL: INFO
     org.hibernate.type.descriptor.sql.BasicBinder: INFO
     com.robsartin.graphs.application.ControllerLoggingAspect: INFO
+    com.robsartin.graphs.infrastructure.correlation: DEBUG
 
 # Actuator & Micrometer
 management:
