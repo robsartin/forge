@@ -99,6 +99,8 @@ resilience4j:
         base-config: default
       traversalService:
         base-config: default
+      immutableGraphService:
+        base-config: default
 
   retry:
     configs:
@@ -117,6 +119,8 @@ resilience4j:
         base-config: default
       traversalService:
         base-config: default
+      immutableGraphService:
+        base-config: default
 
   ratelimiter:
     configs:
@@ -132,6 +136,8 @@ resilience4j:
         base-config: default
       traversalService:
         base-config: default
+      immutableGraphService:
+        base-config: default
 
   timelimiter:
     configs:
@@ -144,4 +150,6 @@ resilience4j:
       nodeService:
         base-config: default
       traversalService:
+        base-config: default
+      immutableGraphService:
         base-config: default
