@@ -39,12 +39,14 @@ class ArchitectureRulesTest {
                     .that().resideInAPackage("com.robsartin.graphs.infrastructure..")
                     .should().onlyDependOnClassesThat().resideInAnyPackage(
                             "java..",
+                            "jakarta..",
                             "dev.openfeature..",
                             "com.robsartin.graphs..",
-                            "org.springframework..",
                             "org.junit..",
-                            "org.jmolecules.."
-                    )
+                            "org.jmolecules..",
+                            "org.slf4j..",
+                            "org.springframework.."
+                            )
                     .allowEmptyShould(true)
                     .check(classes);
         }
