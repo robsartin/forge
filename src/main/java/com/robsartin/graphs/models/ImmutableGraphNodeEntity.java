@@ -1,8 +1,7 @@
 package com.robsartin.graphs.models;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -10,21 +9,20 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Entity representing a node in an immutable graph.
- * The node is identified by the combination of graphId and graphNodeId.
+ * The node is identified by its UUID which is the same as the ImmutableGraph nodeId.
  */
 @Entity
 @Table(name = "immutable_graph_nodes",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"graph_id", "graphNodeId"}))
+       uniqueConstraints = @UniqueConstraint(columnNames = {"graph_id", "id"}))
 public class ImmutableGraphNodeEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
-
-    private Integer graphNodeId;
+    @Column(columnDefinition = "uuid")
+    private UUID id;
 
     private String label;
 
@@ -36,25 +34,17 @@ public class ImmutableGraphNodeEntity {
         // JPA requires a no-arg constructor
     }
 
-    public ImmutableGraphNodeEntity(Integer graphNodeId, String label) {
-        this.graphNodeId = graphNodeId;
+    public ImmutableGraphNodeEntity(UUID id, String label) {
+        this.id = id;
         this.label = label;
     }
 
-    public Integer getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(UUID id) {
         this.id = id;
-    }
-
-    public Integer getGraphNodeId() {
-        return graphNodeId;
-    }
-
-    public void setGraphNodeId(Integer graphNodeId) {
-        this.graphNodeId = graphNodeId;
     }
 
     public String getLabel() {
@@ -90,7 +80,6 @@ public class ImmutableGraphNodeEntity {
     public String toString() {
         return "ImmutableGraphNodeEntity{" +
                 "id=" + id +
-                ", graphNodeId=" + graphNodeId +
                 ", label='" + label + '\'' +
                 '}';
     }

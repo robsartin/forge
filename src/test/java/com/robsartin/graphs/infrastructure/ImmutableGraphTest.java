@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 class ImmutableGraphTest {
 
@@ -24,11 +25,11 @@ class ImmutableGraphTest {
 
         var gn1 = g0.addNode("A");
         ImmutableGraph<String, Integer> g1 = gn1.getGraph();
-        int nodeA = gn1.getNodeId();
+        UUID nodeA = gn1.getNodeId();
 
         var gn2 = g1.addNode("B");
         ImmutableGraph<String, Integer> g2 = gn2.getGraph();
-        int nodeB = gn2.getNodeId();
+        UUID nodeB = gn2.getNodeId();
 
         // Original graph unchanged
         assertEquals(0, g0.nodeCount());
@@ -53,9 +54,9 @@ class ImmutableGraphTest {
         var gn3 = gn2.getGraph().addNode("C");
 
         ImmutableGraph<String, Integer> g1 = gn3.getGraph();
-        int nodeA = gn1.getNodeId();
-        int nodeB = gn2.getNodeId();
-        int nodeC = gn3.getNodeId();
+        UUID nodeA = gn1.getNodeId();
+        UUID nodeB = gn2.getNodeId();
+        UUID nodeC = gn3.getNodeId();
 
         ImmutableGraph<String, Integer> g2 = g1.addEdge(nodeA, nodeB, 10);
         ImmutableGraph<String, Integer> g3 = g2.addEdge(nodeB, nodeC, 20);
@@ -87,8 +88,8 @@ class ImmutableGraphTest {
         var gn2 = gn1.getGraph().addNode("B");
 
         ImmutableGraph<String, Integer> g1 = gn2.getGraph();
-        int nodeA = gn1.getNodeId();
-        int nodeB = gn2.getNodeId();
+        UUID nodeA = gn1.getNodeId();
+        UUID nodeB = gn2.getNodeId();
 
         g1 = g1.addEdge(nodeA, nodeB, 10);
 
@@ -108,8 +109,9 @@ class ImmutableGraphTest {
     @Test
     @DisplayName("Depth-first traversal")
     void testDepthFirstTraversal() {
-        ImmutableGraph<String, Integer> graph = buildTestGraph();
-        int startNode = 0;  // Node "A"
+        TestGraph testGraph = buildTestGraph();
+        ImmutableGraph<String, Integer> graph = testGraph.graph;
+        UUID startNode = testGraph.nodeA;
 
         List<String> visited = new ArrayList<>();
         graph.depthFirstTraversal(startNode, ctx -> visited.add(ctx.getLabel()));
@@ -130,8 +132,9 @@ class ImmutableGraphTest {
     @Test
     @DisplayName("Breadth-first traversal")
     void testBreadthFirstTraversal() {
-        ImmutableGraph<String, Integer> graph = buildTestGraph();
-        int startNode = 0;  // Node "A"
+        TestGraph testGraph = buildTestGraph();
+        ImmutableGraph<String, Integer> graph = testGraph.graph;
+        UUID startNode = testGraph.nodeA;
 
         List<String> visited = new ArrayList<>();
         graph.breadthFirstTraversal(startNode, ctx -> visited.add(ctx.getLabel()));
@@ -151,13 +154,15 @@ class ImmutableGraphTest {
     @Test
     @DisplayName("Multiple traversals on same graph (immutability test)")
     void testMultipleTraversals() {
-        ImmutableGraph<String, Integer> graph = buildTestGraph();
+        TestGraph testGraph = buildTestGraph();
+        ImmutableGraph<String, Integer> graph = testGraph.graph;
+        UUID startNode = testGraph.nodeA;
 
         List<String> firstTraversal = new ArrayList<>();
-        graph.depthFirstTraversal(0, ctx -> firstTraversal.add(ctx.getLabel()));
+        graph.depthFirstTraversal(startNode, ctx -> firstTraversal.add(ctx.getLabel()));
 
         List<String> secondTraversal = new ArrayList<>();
-        graph.depthFirstTraversal(0, ctx -> secondTraversal.add(ctx.getLabel()));
+        graph.depthFirstTraversal(startNode, ctx -> secondTraversal.add(ctx.getLabel()));
 
         assertEquals(firstTraversal, secondTraversal);
         assertEquals(4, graph.nodeCount());
@@ -171,8 +176,8 @@ class ImmutableGraphTest {
         var gn2 = gn1.getGraph().addNode("B");
 
         ImmutableGraph<String, Integer> g1 = gn2.getGraph();
-        int nodeA = gn1.getNodeId();
-        int nodeB = gn2.getNodeId();
+        UUID nodeA = gn1.getNodeId();
+        UUID nodeB = gn2.getNodeId();
 
         g1 = g1.addEdge(nodeA, nodeB, 10);
 
@@ -188,11 +193,16 @@ class ImmutableGraphTest {
     }
 
     /**
+     * Helper record to hold a test graph with its node IDs
+     */
+    private record TestGraph(ImmutableGraph<String, Integer> graph, UUID nodeA, UUID nodeB, UUID nodeC, UUID nodeD) {}
+
+    /**
      * Build a test graph:
      *     A -> B -> D
      *     A -> C
      */
-    private ImmutableGraph<String, Integer> buildTestGraph() {
+    private TestGraph buildTestGraph() {
         ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();
 
         var gn1 = g0.addNode("A");
@@ -202,15 +212,15 @@ class ImmutableGraphTest {
 
         ImmutableGraph<String, Integer> g = gn4.getGraph();
 
-        int nodeA = gn1.getNodeId();
-        int nodeB = gn2.getNodeId();
-        int nodeC = gn3.getNodeId();
-        int nodeD = gn4.getNodeId();
+        UUID nodeA = gn1.getNodeId();
+        UUID nodeB = gn2.getNodeId();
+        UUID nodeC = gn3.getNodeId();
+        UUID nodeD = gn4.getNodeId();
 
         g = g.addEdge(nodeA, nodeB, 1);
         g = g.addEdge(nodeA, nodeC, 2);
         g = g.addEdge(nodeB, nodeD, 3);
 
-        return g;
+        return new TestGraph(g, nodeA, nodeB, nodeC, nodeD);
     }
 }

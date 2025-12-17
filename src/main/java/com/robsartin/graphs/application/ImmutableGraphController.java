@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * REST Controller for managing immutable graphs as a whole.
@@ -77,7 +78,7 @@ public class ImmutableGraphController {
 
         for (NodeRequest nodeRequest : request.nodes()) {
             ImmutableGraphNodeEntity node = new ImmutableGraphNodeEntity(
-                    nodeRequest.graphNodeId(),
+                    nodeRequest.id(),
                     nodeRequest.label()
             );
             graph.addNode(node);
@@ -93,18 +94,18 @@ public class ImmutableGraphController {
 
         ImmutableGraphEntity savedGraph = immutableGraphRepository.save(graph);
 
-        log.info("Saved immutable graph with graphId: {}", savedGraph.getGraphId());
+        log.info("Saved immutable graph with id: {}", savedGraph.getId());
 
         return toResponse(savedGraph);
     }
 
     /**
-     * GET /immutable-graphs/{graphId} - Retrieves an entire immutable graph
+     * GET /immutable-graphs/{id} - Retrieves an entire immutable graph
      *
-     * @param graphId the graph ID
+     * @param id the graph ID
      * @return the graph with all nodes and edges if found, 404 if not found
      */
-    @GetMapping("/{graphId}")
+    @GetMapping("/{id}")
     @Operation(summary = "Get entire immutable graph", description = "Retrieves an entire immutable graph with all nodes and edges")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Graph found",
@@ -116,17 +117,17 @@ public class ImmutableGraphController {
     @RateLimiter(name = "immutableGraphService")
     @Retry(name = "immutableGraphService")
     public ResponseEntity<ImmutableGraphResponse> getGraph(
-            @Parameter(description = "Graph ID", required = true) @PathVariable Integer graphId) {
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id) {
 
-        log.info("Retrieving immutable graph with graphId: {}", graphId);
+        log.info("Retrieving immutable graph with id: {}", id);
 
-        return immutableGraphRepository.findById(graphId)
+        return immutableGraphRepository.findById(id)
                 .map(graph -> {
                     log.info("Found immutable graph: {}", graph.getName());
                     return ResponseEntity.ok(toResponse(graph));
                 })
                 .orElseGet(() -> {
-                    log.warn("Immutable graph not found with graphId: {}", graphId);
+                    log.warn("Immutable graph not found with id: {}", id);
                     return ResponseEntity.notFound().build();
                 });
     }
@@ -159,12 +160,12 @@ public class ImmutableGraphController {
     }
 
     /**
-     * DELETE /immutable-graphs/{graphId} - Deletes an immutable graph
+     * DELETE /immutable-graphs/{id} - Deletes an immutable graph
      *
-     * @param graphId the graph ID to delete
+     * @param id the graph ID to delete
      * @return 204 No Content if deleted, 404 if not found
      */
-    @DeleteMapping("/{graphId}")
+    @DeleteMapping("/{id}")
     @Operation(summary = "Delete an immutable graph", description = "Deletes an immutable graph by its ID")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Graph deleted successfully"),
@@ -175,33 +176,33 @@ public class ImmutableGraphController {
     @RateLimiter(name = "immutableGraphService")
     @Retry(name = "immutableGraphService")
     public ResponseEntity<Void> deleteGraph(
-            @Parameter(description = "Graph ID to delete", required = true) @PathVariable Integer graphId) {
+            @Parameter(description = "Graph ID to delete", required = true) @PathVariable UUID id) {
 
-        log.info("Deleting immutable graph with graphId: {}", graphId);
+        log.info("Deleting immutable graph with id: {}", id);
 
-        if (!immutableGraphRepository.existsById(graphId)) {
-            log.warn("Immutable graph not found for deletion with graphId: {}", graphId);
+        if (!immutableGraphRepository.existsById(id)) {
+            log.warn("Immutable graph not found for deletion with id: {}", id);
             return ResponseEntity.notFound().build();
         }
 
-        immutableGraphRepository.deleteById(graphId);
+        immutableGraphRepository.deleteById(id);
 
-        log.info("Deleted immutable graph with graphId: {}", graphId);
+        log.info("Deleted immutable graph with id: {}", id);
 
         return ResponseEntity.noContent().build();
     }
 
     private ImmutableGraphResponse toResponse(ImmutableGraphEntity graph) {
         List<NodeResponse> nodes = graph.getNodes().stream()
-                .sorted(Comparator.comparing(ImmutableGraphNodeEntity::getGraphNodeId))
-                .map(n -> new NodeResponse(n.getGraphNodeId(), n.getLabel()))
+                .sorted(Comparator.comparing(n -> n.getId().toString()))
+                .map(n -> new NodeResponse(n.getId(), n.getLabel()))
                 .toList();
 
         List<EdgeResponse> edges = graph.getEdges().stream()
                 .map(e -> new EdgeResponse(e.getFromId(), e.getToId()))
                 .toList();
 
-        return new ImmutableGraphResponse(graph.getGraphId(), graph.getName(), nodes, edges);
+        return new ImmutableGraphResponse(graph.getId(), graph.getName(), nodes, edges);
     }
 
     /**
@@ -222,8 +223,8 @@ public class ImmutableGraphController {
      */
     @Schema(description = "Node information for saving")
     public record NodeRequest(
-            @Schema(description = "Unique node ID within the graph", example = "0")
-            @NotNull Integer graphNodeId,
+            @Schema(description = "Unique node ID", example = "550e8400-e29b-41d4-a716-446655440001")
+            @NotNull UUID id,
             @Schema(description = "Label of the node", example = "Node A")
             @NotBlank String label) {
     }
@@ -233,10 +234,10 @@ public class ImmutableGraphController {
      */
     @Schema(description = "Edge information for saving")
     public record EdgeRequest(
-            @Schema(description = "Source node ID", example = "0")
-            @NotNull Integer fromId,
-            @Schema(description = "Target node ID", example = "1")
-            @NotNull Integer toId) {
+            @Schema(description = "Source node ID", example = "550e8400-e29b-41d4-a716-446655440001")
+            @NotNull UUID fromId,
+            @Schema(description = "Target node ID", example = "550e8400-e29b-41d4-a716-446655440002")
+            @NotNull UUID toId) {
     }
 
     /**
@@ -244,8 +245,8 @@ public class ImmutableGraphController {
      */
     @Schema(description = "Response containing an immutable graph with all nodes and edges")
     public record ImmutableGraphResponse(
-            @Schema(description = "Unique identifier of the graph", example = "1")
-            Integer graphId,
+            @Schema(description = "Unique identifier of the graph", example = "550e8400-e29b-41d4-a716-446655440000")
+            UUID id,
             @Schema(description = "Name of the graph", example = "My Graph")
             String name,
             @Schema(description = "List of nodes in the graph")
@@ -259,8 +260,8 @@ public class ImmutableGraphController {
      */
     @Schema(description = "Node information in response")
     public record NodeResponse(
-            @Schema(description = "Unique node ID within the graph", example = "0")
-            Integer graphNodeId,
+            @Schema(description = "Unique node ID", example = "550e8400-e29b-41d4-a716-446655440001")
+            UUID id,
             @Schema(description = "Label of the node", example = "Node A")
             String label) {
     }
@@ -270,9 +271,9 @@ public class ImmutableGraphController {
      */
     @Schema(description = "Edge information in response")
     public record EdgeResponse(
-            @Schema(description = "Source node ID", example = "0")
-            Integer fromId,
-            @Schema(description = "Target node ID", example = "1")
-            Integer toId) {
+            @Schema(description = "Source node ID", example = "550e8400-e29b-41d4-a716-446655440001")
+            UUID fromId,
+            @Schema(description = "Target node ID", example = "550e8400-e29b-41d4-a716-446655440002")
+            UUID toId) {
     }
 }

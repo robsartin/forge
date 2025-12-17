@@ -2,9 +2,8 @@ package com.robsartin.graphs.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.robsartin.graphs.config.TestOpenFeatureConfiguration;
+import com.robsartin.graphs.infrastructure.UuidV7Generator;
 import com.robsartin.graphs.models.ImmutableGraphEntity;
-import com.robsartin.graphs.models.ImmutableGraphNodeEntity;
-import com.robsartin.graphs.models.ImmutableGraphEdgeEntity;
 import com.robsartin.graphs.ports.out.ImmutableGraphRepository;
 import jakarta.persistence.EntityManager;
 
@@ -19,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -49,26 +49,30 @@ class ImmutableGraphControllerTest {
     // POST /immutable-graphs - save entire immutable graph
     @Test
     void shouldSaveEntireImmutableGraph() throws Exception {
+        UUID nodeAId = UuidV7Generator.generate();
+        UUID nodeBId = UuidV7Generator.generate();
+        UUID nodeCId = UuidV7Generator.generate();
+
         String requestBody = """
             {
                 "name": "Test Graph",
                 "nodes": [
-                    {"graphNodeId": 0, "label": "Node A"},
-                    {"graphNodeId": 1, "label": "Node B"},
-                    {"graphNodeId": 2, "label": "Node C"}
+                    {"id": "%s", "label": "Node A"},
+                    {"id": "%s", "label": "Node B"},
+                    {"id": "%s", "label": "Node C"}
                 ],
                 "edges": [
-                    {"fromId": 0, "toId": 1},
-                    {"fromId": 1, "toId": 2}
+                    {"fromId": "%s", "toId": "%s"},
+                    {"fromId": "%s", "toId": "%s"}
                 ]
             }
-            """;
+            """.formatted(nodeAId, nodeBId, nodeCId, nodeAId, nodeBId, nodeBId, nodeCId);
 
         mockMvc.perform(post("/immutable-graphs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.graphId").exists())
+                .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.name").value("Test Graph"))
                 .andExpect(jsonPath("$.nodes").isArray())
                 .andExpect(jsonPath("$.nodes.length()").value(3))
@@ -90,7 +94,7 @@ class ImmutableGraphControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.graphId").exists())
+                .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.name").value("Empty Graph"))
                 .andExpect(jsonPath("$.nodes").isArray())
                 .andExpect(jsonPath("$.nodes.length()").value(0))
@@ -100,22 +104,25 @@ class ImmutableGraphControllerTest {
 
     @Test
     void shouldSaveGraphWithNodesButNoEdges() throws Exception {
+        UUID nodeAId = UuidV7Generator.generate();
+        UUID nodeBId = UuidV7Generator.generate();
+
         String requestBody = """
             {
                 "name": "Disconnected Graph",
                 "nodes": [
-                    {"graphNodeId": 0, "label": "Node A"},
-                    {"graphNodeId": 1, "label": "Node B"}
+                    {"id": "%s", "label": "Node A"},
+                    {"id": "%s", "label": "Node B"}
                 ],
                 "edges": []
             }
-            """;
+            """.formatted(nodeAId, nodeBId);
 
         mockMvc.perform(post("/immutable-graphs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.graphId").exists())
+                .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.name").value("Disconnected Graph"))
                 .andExpect(jsonPath("$.nodes.length()").value(2))
                 .andExpect(jsonPath("$.edges.length()").value(0));
@@ -170,15 +177,17 @@ class ImmutableGraphControllerTest {
 
     @Test
     void shouldPersistGraphWhenSaving() throws Exception {
+        UUID nodeAId = UuidV7Generator.generate();
+
         String requestBody = """
             {
                 "name": "Test Graph",
                 "nodes": [
-                    {"graphNodeId": 0, "label": "Node A"}
+                    {"id": "%s", "label": "Node A"}
                 ],
                 "edges": []
             }
-            """;
+            """.formatted(nodeAId);
 
         mockMvc.perform(post("/immutable-graphs")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -191,24 +200,28 @@ class ImmutableGraphControllerTest {
         assert graphs.get(0).getNodes().size() == 1;
     }
 
-    // GET /immutable-graphs/{graphId} - get entire immutable graph
+    // GET /immutable-graphs/{id} - get entire immutable graph
     @Test
     void shouldReturnEntireImmutableGraph() throws Exception {
+        UUID nodeAId = UuidV7Generator.generate();
+        UUID nodeBId = UuidV7Generator.generate();
+        UUID nodeCId = UuidV7Generator.generate();
+
         // First save a graph
         String requestBody = """
             {
                 "name": "Test Graph",
                 "nodes": [
-                    {"graphNodeId": 0, "label": "Node A"},
-                    {"graphNodeId": 1, "label": "Node B"},
-                    {"graphNodeId": 2, "label": "Node C"}
+                    {"id": "%s", "label": "Node A"},
+                    {"id": "%s", "label": "Node B"},
+                    {"id": "%s", "label": "Node C"}
                 ],
                 "edges": [
-                    {"fromId": 0, "toId": 1},
-                    {"fromId": 1, "toId": 2}
+                    {"fromId": "%s", "toId": "%s"},
+                    {"fromId": "%s", "toId": "%s"}
                 ]
             }
-            """;
+            """.formatted(nodeAId, nodeBId, nodeCId, nodeAId, nodeBId, nodeBId, nodeCId);
 
         String response = mockMvc.perform(post("/immutable-graphs")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -216,7 +229,7 @@ class ImmutableGraphControllerTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Integer graphId = objectMapper.readTree(response).get("graphId").asInt();
+        String graphId = objectMapper.readTree(response).get("id").asText();
 
         // Clear persistence context to simulate separate HTTP request
         entityManager.flush();
@@ -225,23 +238,18 @@ class ImmutableGraphControllerTest {
         // Now retrieve the graph
         mockMvc.perform(get("/immutable-graphs/" + graphId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.graphId").value(graphId))
+                .andExpect(jsonPath("$.id").value(graphId))
                 .andExpect(jsonPath("$.name").value("Test Graph"))
                 .andExpect(jsonPath("$.nodes").isArray())
                 .andExpect(jsonPath("$.nodes.length()").value(3))
-                .andExpect(jsonPath("$.nodes[0].graphNodeId").value(0))
-                .andExpect(jsonPath("$.nodes[0].label").value("Node A"))
-                .andExpect(jsonPath("$.nodes[1].graphNodeId").value(1))
-                .andExpect(jsonPath("$.nodes[1].label").value("Node B"))
-                .andExpect(jsonPath("$.nodes[2].graphNodeId").value(2))
-                .andExpect(jsonPath("$.nodes[2].label").value("Node C"))
                 .andExpect(jsonPath("$.edges").isArray())
                 .andExpect(jsonPath("$.edges.length()").value(2));
     }
 
     @Test
     void shouldReturn404WhenGraphNotFound() throws Exception {
-        mockMvc.perform(get("/immutable-graphs/999"))
+        UUID randomUuid = UuidV7Generator.generate();
+        mockMvc.perform(get("/immutable-graphs/" + randomUuid))
                 .andExpect(status().isNotFound());
     }
 
@@ -262,14 +270,14 @@ class ImmutableGraphControllerTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Integer graphId = objectMapper.readTree(response).get("graphId").asInt();
+        String graphId = objectMapper.readTree(response).get("id").asText();
 
         entityManager.flush();
         entityManager.clear();
 
         mockMvc.perform(get("/immutable-graphs/" + graphId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.graphId").value(graphId))
+                .andExpect(jsonPath("$.id").value(graphId))
                 .andExpect(jsonPath("$.name").value("Empty Graph"))
                 .andExpect(jsonPath("$.nodes").isArray())
                 .andExpect(jsonPath("$.nodes.length()").value(0))
@@ -280,21 +288,24 @@ class ImmutableGraphControllerTest {
     // GET /immutable-graphs - list all immutable graphs
     @Test
     void shouldReturnAllImmutableGraphs() throws Exception {
+        UUID node1Id = UuidV7Generator.generate();
+        UUID node2Id = UuidV7Generator.generate();
+
         String requestBody1 = """
             {
                 "name": "Graph 1",
-                "nodes": [{"graphNodeId": 0, "label": "Node A"}],
+                "nodes": [{"id": "%s", "label": "Node A"}],
                 "edges": []
             }
-            """;
+            """.formatted(node1Id);
 
         String requestBody2 = """
             {
                 "name": "Graph 2",
-                "nodes": [{"graphNodeId": 0, "label": "Node B"}],
+                "nodes": [{"id": "%s", "label": "Node B"}],
                 "edges": []
             }
-            """;
+            """.formatted(node2Id);
 
         mockMvc.perform(post("/immutable-graphs")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -325,16 +336,18 @@ class ImmutableGraphControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
-    // DELETE /immutable-graphs/{graphId} - delete immutable graph
+    // DELETE /immutable-graphs/{id} - delete immutable graph
     @Test
     void shouldDeleteImmutableGraph() throws Exception {
+        UUID nodeAId = UuidV7Generator.generate();
+
         String requestBody = """
             {
                 "name": "Test Graph",
-                "nodes": [{"graphNodeId": 0, "label": "Node A"}],
+                "nodes": [{"id": "%s", "label": "Node A"}],
                 "edges": []
             }
-            """;
+            """.formatted(nodeAId);
 
         String response = mockMvc.perform(post("/immutable-graphs")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -342,40 +355,47 @@ class ImmutableGraphControllerTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Integer graphId = objectMapper.readTree(response).get("graphId").asInt();
+        String graphId = objectMapper.readTree(response).get("id").asText();
 
         mockMvc.perform(delete("/immutable-graphs/" + graphId))
                 .andExpect(status().isNoContent());
 
-        assert immutableGraphRepository.findById(graphId).isEmpty();
+        assert immutableGraphRepository.findById(UUID.fromString(graphId)).isEmpty();
     }
 
     @Test
     void shouldReturn404WhenDeletingNonExistentGraph() throws Exception {
-        mockMvc.perform(delete("/immutable-graphs/999"))
+        UUID randomUuid = UuidV7Generator.generate();
+        mockMvc.perform(delete("/immutable-graphs/" + randomUuid))
                 .andExpect(status().isNotFound());
     }
 
     // Test edge relationships
     @Test
     void shouldPreserveEdgeRelationships() throws Exception {
+        UUID nodeAId = UuidV7Generator.generate();
+        UUID nodeBId = UuidV7Generator.generate();
+        UUID nodeCId = UuidV7Generator.generate();
+        UUID nodeDId = UuidV7Generator.generate();
+
         String requestBody = """
             {
                 "name": "Complex Graph",
                 "nodes": [
-                    {"graphNodeId": 0, "label": "A"},
-                    {"graphNodeId": 1, "label": "B"},
-                    {"graphNodeId": 2, "label": "C"},
-                    {"graphNodeId": 3, "label": "D"}
+                    {"id": "%s", "label": "A"},
+                    {"id": "%s", "label": "B"},
+                    {"id": "%s", "label": "C"},
+                    {"id": "%s", "label": "D"}
                 ],
                 "edges": [
-                    {"fromId": 0, "toId": 1},
-                    {"fromId": 0, "toId": 2},
-                    {"fromId": 1, "toId": 3},
-                    {"fromId": 2, "toId": 3}
+                    {"fromId": "%s", "toId": "%s"},
+                    {"fromId": "%s", "toId": "%s"},
+                    {"fromId": "%s", "toId": "%s"},
+                    {"fromId": "%s", "toId": "%s"}
                 ]
             }
-            """;
+            """.formatted(nodeAId, nodeBId, nodeCId, nodeDId,
+                          nodeAId, nodeBId, nodeAId, nodeCId, nodeBId, nodeDId, nodeCId, nodeDId);
 
         String response = mockMvc.perform(post("/immutable-graphs")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -383,7 +403,7 @@ class ImmutableGraphControllerTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Integer graphId = objectMapper.readTree(response).get("graphId").asInt();
+        String graphId = objectMapper.readTree(response).get("id").asText();
 
         entityManager.flush();
         entityManager.clear();
@@ -397,21 +417,25 @@ class ImmutableGraphControllerTest {
     // Test cyclic graph
     @Test
     void shouldSaveCyclicGraph() throws Exception {
+        UUID nodeAId = UuidV7Generator.generate();
+        UUID nodeBId = UuidV7Generator.generate();
+        UUID nodeCId = UuidV7Generator.generate();
+
         String requestBody = """
             {
                 "name": "Cyclic Graph",
                 "nodes": [
-                    {"graphNodeId": 0, "label": "A"},
-                    {"graphNodeId": 1, "label": "B"},
-                    {"graphNodeId": 2, "label": "C"}
+                    {"id": "%s", "label": "A"},
+                    {"id": "%s", "label": "B"},
+                    {"id": "%s", "label": "C"}
                 ],
                 "edges": [
-                    {"fromId": 0, "toId": 1},
-                    {"fromId": 1, "toId": 2},
-                    {"fromId": 2, "toId": 0}
+                    {"fromId": "%s", "toId": "%s"},
+                    {"fromId": "%s", "toId": "%s"},
+                    {"fromId": "%s", "toId": "%s"}
                 ]
             }
-            """;
+            """.formatted(nodeAId, nodeBId, nodeCId, nodeAId, nodeBId, nodeBId, nodeCId, nodeCId, nodeAId);
 
         String response = mockMvc.perform(post("/immutable-graphs")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -419,7 +443,7 @@ class ImmutableGraphControllerTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Integer graphId = objectMapper.readTree(response).get("graphId").asInt();
+        String graphId = objectMapper.readTree(response).get("id").asText();
 
         entityManager.flush();
         entityManager.clear();

@@ -4,6 +4,7 @@ import com.robsartin.graphs.models.ImmutableGraphEntity;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Port for ImmutableGraph persistence operations.
@@ -23,10 +24,10 @@ public interface ImmutableGraphRepository {
     /**
      * Finds an immutable graph by its ID.
      *
-     * @param graphId the graph ID
+     * @param id the graph ID
      * @return an Optional containing the graph if found, or empty if not found
      */
-    Optional<ImmutableGraphEntity> findById(Integer graphId);
+    Optional<ImmutableGraphEntity> findById(UUID id);
 
     /**
      * Retrieves all immutable graphs from the repository.
@@ -38,17 +39,17 @@ public interface ImmutableGraphRepository {
     /**
      * Deletes an immutable graph by its ID.
      *
-     * @param graphId the graph ID to delete
+     * @param id the graph ID to delete
      */
-    void deleteById(Integer graphId);
+    void deleteById(UUID id);
 
     /**
      * Checks if an immutable graph exists with the given ID.
      *
-     * @param graphId the graph ID
+     * @param id the graph ID
      * @return true if a graph exists, false otherwise
      */
-    boolean existsById(Integer graphId);
+    boolean existsById(UUID id);
 
     /**
      * Deletes all immutable graphs from the repository.
