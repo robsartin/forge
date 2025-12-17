@@ -3,6 +3,9 @@ spring:
     name: graph-experiment
   profiles:
     active: dev
+  threads:
+    virtual:
+      enabled: true
 
   # H2 Database Configuration
   datasource:
@@ -10,6 +13,12 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
+    hikari:
+      maximum-pool-size: 32
+      minimum-idle: 8
+      connection-timeout: 2000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   # JPA/Hibernate Configuration
   jpa:
