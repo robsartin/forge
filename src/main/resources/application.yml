@@ -3,6 +3,8 @@ spring:
     name: graph-experiment
   profiles:
     active: dev
+  main:
+    lazy-initialization: true
   threads:
     virtual:
       enabled: true
@@ -57,7 +59,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,metrics,threaddump,env
   endpoint:
     health:
       show-details: always
