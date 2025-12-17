@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Adapter that implements the GraphRepository port using Spring Data JPA.
@@ -26,7 +27,7 @@ public class GraphRepositoryAdapter implements GraphRepository {
     }
 
     @Override
-    public Optional<Graph> findById(Integer id) {
+    public Optional<Graph> findById(UUID id) {
         return jpaGraphRepository.findById(id);
     }
 
@@ -36,12 +37,12 @@ public class GraphRepositoryAdapter implements GraphRepository {
     }
 
     @Override
-    public void deleteById(Integer id) {
+    public void deleteById(UUID id) {
         jpaGraphRepository.deleteById(id);
     }
 
     @Override
-    public boolean existsById(Integer id) {
+    public boolean existsById(UUID id) {
         return jpaGraphRepository.existsById(id);
     }
 

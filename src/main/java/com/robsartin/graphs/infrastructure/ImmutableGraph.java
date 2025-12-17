@@ -9,42 +9,39 @@ import java.util.function.Consumer;
  */
 public class ImmutableGraph<N, E> {
 
-    private final Map<Integer, Context<N, E>> nodes;
-    private final int nextNodeId;
+    private final Map<UUID, Context<N, E>> nodes;
 
     // Empty graph constructor
     public ImmutableGraph() {
         this.nodes = Collections.emptyMap();
-        this.nextNodeId = 0;
     }
 
-    private ImmutableGraph(Map<Integer, Context<N, E>> nodes, int nextNodeId) {
+    private ImmutableGraph(Map<UUID, Context<N, E>> nodes) {
         this.nodes = Collections.unmodifiableMap(new HashMap<>(nodes));
-        this.nextNodeId = nextNodeId;
     }
 
     /**
      * Context represents a node with its label and adjacent edges
      */
     public static class Context<N, E> {
-        private final int nodeId;
+        private final UUID nodeId;
         private final N label;
-        private final Map<Integer, E> predecessors;  // incoming edges
-        private final Map<Integer, E> successors;    // outgoing edges
+        private final Map<UUID, E> predecessors;  // incoming edges
+        private final Map<UUID, E> successors;    // outgoing edges
 
-        public Context(int nodeId, N label,
-                       Map<Integer, E> predecessors,
-                       Map<Integer, E> successors) {
+        public Context(UUID nodeId, N label,
+                       Map<UUID, E> predecessors,
+                       Map<UUID, E> successors) {
             this.nodeId = nodeId;
             this.label = label;
             this.predecessors = Collections.unmodifiableMap(new HashMap<>(predecessors));
             this.successors = Collections.unmodifiableMap(new HashMap<>(successors));
         }
 
-        public int getNodeId() { return nodeId; }
+        public UUID getNodeId() { return nodeId; }
         public N getLabel() { return label; }
-        public Map<Integer, E> getPredecessors() { return predecessors; }
-        public Map<Integer, E> getSuccessors() { return successors; }
+        public Map<UUID, E> getPredecessors() { return predecessors; }
+        public Map<UUID, E> getSuccessors() { return successors; }
     }
 
     /**
@@ -68,13 +65,27 @@ public class ImmutableGraph<N, E> {
      * Add a node with a label, returns new graph and node ID
      */
     public GraphWithNode<N, E> addNode(N label) {
-        Map<Integer, Context<N, E>> newNodes = new HashMap<>(nodes);
-        int nodeId = nextNodeId;
+        Map<UUID, Context<N, E>> newNodes = new HashMap<>(nodes);
+        UUID nodeId = UuidV7Generator.generate();
         Context<N, E> context = new Context<>(nodeId, label,
                                               Collections.emptyMap(), Collections.emptyMap());
         newNodes.put(nodeId, context);
         return new GraphWithNode<>(
-                new ImmutableGraph<>(newNodes, nextNodeId + 1),
+                new ImmutableGraph<>(newNodes),
+                nodeId
+        );
+    }
+
+    /**
+     * Add a node with a specific UUID (for reconstruction from persistence)
+     */
+    public GraphWithNode<N, E> addNodeWithId(UUID nodeId, N label) {
+        Map<UUID, Context<N, E>> newNodes = new HashMap<>(nodes);
+        Context<N, E> context = new Context<>(nodeId, label,
+                                              Collections.emptyMap(), Collections.emptyMap());
+        newNodes.put(nodeId, context);
+        return new GraphWithNode<>(
+                new ImmutableGraph<>(newNodes),
                 nodeId
         );
     }
@@ -82,78 +93,78 @@ public class ImmutableGraph<N, E> {
     /**
      * Add an edge between two nodes, returns new graph
      */
-    public ImmutableGraph<N, E> addEdge(int fromNode, int toNode, E edgeLabel) {
+    public ImmutableGraph<N, E> addEdge(UUID fromNode, UUID toNode, E edgeLabel) {
         if (!nodes.containsKey(fromNode) || !nodes.containsKey(toNode)) {
             throw new IllegalArgumentException("Both nodes must exist in the graph");
         }
 
-        Map<Integer, Context<N, E>> newNodes = new HashMap<>(nodes);
+        Map<UUID, Context<N, E>> newNodes = new HashMap<>(nodes);
 
         // Update source node's successors
         Context<N, E> fromContext = nodes.get(fromNode);
-        Map<Integer, E> newSuccessors = new HashMap<>(fromContext.successors);
+        Map<UUID, E> newSuccessors = new HashMap<>(fromContext.successors);
         newSuccessors.put(toNode, edgeLabel);
         newNodes.put(fromNode, new Context<>(fromNode, fromContext.label,
                                              fromContext.predecessors, newSuccessors));
 
         // Update target node's predecessors
         Context<N, E> toContext = nodes.get(toNode);
-        Map<Integer, E> newPredecessors = new HashMap<>(toContext.predecessors);
+        Map<UUID, E> newPredecessors = new HashMap<>(toContext.predecessors);
         newPredecessors.put(fromNode, edgeLabel);
         newNodes.put(toNode, new Context<>(toNode, toContext.label,
                                            newPredecessors, toContext.successors));
 
-        return new ImmutableGraph<>(newNodes, nextNodeId);
+        return new ImmutableGraph<>(newNodes);
     }
 
     /**
      * Match operation - decompose graph by extracting a node
      */
-    public Decomposition<N, E> match(int nodeId) {
+    public Decomposition<N, E> match(UUID nodeId) {
         if (!nodes.containsKey(nodeId)) {
             return new Decomposition<>(null, this);
         }
 
         Context<N, E> context = nodes.get(nodeId);
-        Map<Integer, Context<N, E>> newNodes = new HashMap<>(nodes);
+        Map<UUID, Context<N, E>> newNodes = new HashMap<>(nodes);
         newNodes.remove(nodeId);
 
         // Remove references to this node from all other nodes
-        for (int pred : context.predecessors.keySet()) {
+        for (UUID pred : context.predecessors.keySet()) {
             if (newNodes.containsKey(pred)) {
                 Context<N, E> predContext = newNodes.get(pred);
-                Map<Integer, E> newSuccessors = new HashMap<>(predContext.successors);
+                Map<UUID, E> newSuccessors = new HashMap<>(predContext.successors);
                 newSuccessors.remove(nodeId);
                 newNodes.put(pred, new Context<>(pred, predContext.label,
                                                  predContext.predecessors, newSuccessors));
             }
         }
 
-        for (int succ : context.successors.keySet()) {
+        for (UUID succ : context.successors.keySet()) {
             if (newNodes.containsKey(succ)) {
                 Context<N, E> succContext = newNodes.get(succ);
-                Map<Integer, E> newPredecessors = new HashMap<>(succContext.predecessors);
+                Map<UUID, E> newPredecessors = new HashMap<>(succContext.predecessors);
                 newPredecessors.remove(nodeId);
                 newNodes.put(succ, new Context<>(succ, succContext.label,
                                                  newPredecessors, succContext.successors));
             }
         }
 
-        return new Decomposition<>(context, new ImmutableGraph<>(newNodes, nextNodeId));
+        return new Decomposition<>(context, new ImmutableGraph<>(newNodes));
     }
 
     /**
      * Compose - add a context back to a graph
      */
     public ImmutableGraph<N, E> compose(Context<N, E> context) {
-        Map<Integer, Context<N, E>> newNodes = new HashMap<>(nodes);
+        Map<UUID, Context<N, E>> newNodes = new HashMap<>(nodes);
         newNodes.put(context.nodeId, context);
 
         // Update predecessor nodes
-        for (Map.Entry<Integer, E> pred : context.predecessors.entrySet()) {
+        for (Map.Entry<UUID, E> pred : context.predecessors.entrySet()) {
             if (newNodes.containsKey(pred.getKey())) {
                 Context<N, E> predContext = newNodes.get(pred.getKey());
-                Map<Integer, E> newSuccessors = new HashMap<>(predContext.successors);
+                Map<UUID, E> newSuccessors = new HashMap<>(predContext.successors);
                 newSuccessors.put(context.nodeId, pred.getValue());
                 newNodes.put(pred.getKey(), new Context<>(pred.getKey(),
                                                           predContext.label, predContext.predecessors, newSuccessors));
@@ -161,28 +172,28 @@ public class ImmutableGraph<N, E> {
         }
 
         // Update successor nodes
-        for (Map.Entry<Integer, E> succ : context.successors.entrySet()) {
+        for (Map.Entry<UUID, E> succ : context.successors.entrySet()) {
             if (newNodes.containsKey(succ.getKey())) {
                 Context<N, E> succContext = newNodes.get(succ.getKey());
-                Map<Integer, E> newPredecessors = new HashMap<>(succContext.predecessors);
+                Map<UUID, E> newPredecessors = new HashMap<>(succContext.predecessors);
                 newPredecessors.put(context.nodeId, succ.getValue());
                 newNodes.put(succ.getKey(), new Context<>(succ.getKey(),
                                                           succContext.label, newPredecessors, succContext.successors));
             }
         }
 
-        return new ImmutableGraph<>(newNodes, nextNodeId);
+        return new ImmutableGraph<>(newNodes);
     }
 
-    public boolean containsNode(int nodeId) {
+    public boolean containsNode(UUID nodeId) {
         return nodes.containsKey(nodeId);
     }
 
-    public Context<N, E> getContext(int nodeId) {
+    public Context<N, E> getContext(UUID nodeId) {
         return nodes.get(nodeId);
     }
 
-    public Set<Integer> getNodeIds() {
+    public Set<UUID> getNodeIds() {
         return nodes.keySet();
     }
 
@@ -197,16 +208,16 @@ public class ImmutableGraph<N, E> {
     /**
      * Depth-first traversal
      */
-    public void depthFirstTraversal(int startNode, Consumer<Context<N, E>> visitor) {
+    public void depthFirstTraversal(UUID startNode, Consumer<Context<N, E>> visitor) {
         if (!nodes.containsKey(startNode)) {
             throw new IllegalArgumentException("Start node does not exist");
         }
 
-        Set<Integer> visited = new HashSet<>();
+        Set<UUID> visited = new HashSet<>();
         dfsHelper(startNode, visitor, visited);
     }
 
-    private void dfsHelper(int nodeId, Consumer<Context<N, E>> visitor, Set<Integer> visited) {
+    private void dfsHelper(UUID nodeId, Consumer<Context<N, E>> visitor, Set<UUID> visited) {
         if (visited.contains(nodeId)) {
             return;
         }
@@ -215,7 +226,7 @@ public class ImmutableGraph<N, E> {
         Context<N, E> context = nodes.get(nodeId);
         visitor.accept(context);
 
-        for (int successor : context.successors.keySet()) {
+        for (UUID successor : context.successors.keySet()) {
             dfsHelper(successor, visitor, visited);
         }
     }
@@ -223,23 +234,23 @@ public class ImmutableGraph<N, E> {
     /**
      * Breadth-first traversal
      */
-    public void breadthFirstTraversal(int startNode, Consumer<Context<N, E>> visitor) {
+    public void breadthFirstTraversal(UUID startNode, Consumer<Context<N, E>> visitor) {
         if (!nodes.containsKey(startNode)) {
             throw new IllegalArgumentException("Start node does not exist");
         }
 
-        Set<Integer> visited = new HashSet<>();
-        Queue<Integer> queue = new LinkedList<>();
+        Set<UUID> visited = new HashSet<>();
+        Queue<UUID> queue = new LinkedList<>();
 
         queue.offer(startNode);
         visited.add(startNode);
 
         while (!queue.isEmpty()) {
-            int nodeId = queue.poll();
+            UUID nodeId = queue.poll();
             Context<N, E> context = nodes.get(nodeId);
             visitor.accept(context);
 
-            for (int successor : context.successors.keySet()) {
+            for (UUID successor : context.successors.keySet()) {
                 if (!visited.contains(successor)) {
                     visited.add(successor);
                     queue.offer(successor);
@@ -253,14 +264,14 @@ public class ImmutableGraph<N, E> {
      */
     public static class GraphWithNode<N, E> {
         private final ImmutableGraph<N, E> graph;
-        private final int nodeId;
+        private final UUID nodeId;
 
-        public GraphWithNode(ImmutableGraph<N, E> graph, int nodeId) {
+        public GraphWithNode(ImmutableGraph<N, E> graph, UUID nodeId) {
             this.graph = graph;
             this.nodeId = nodeId;
         }
 
         public ImmutableGraph<N, E> getGraph() { return graph; }
-        public int getNodeId() { return nodeId; }
+        public UUID getNodeId() { return nodeId; }
     }
 }

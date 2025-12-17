@@ -1,30 +1,34 @@
 package com.robsartin.graphs.models;
 
+import com.robsartin.graphs.infrastructure.UuidV7Generator;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Entity representing an edge in an immutable graph.
- * The edge connects two nodes identified by fromId and toId.
+ * The edge connects two nodes identified by fromId and toId (which are node UUIDs).
  */
 @Entity
 @Table(name = "immutable_graph_edges")
 public class ImmutableGraphEdgeEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @Column(columnDefinition = "uuid")
+    private UUID id;
 
-    private Integer fromId;
+    @Column(columnDefinition = "uuid")
+    private UUID fromId;
 
-    private Integer toId;
+    @Column(columnDefinition = "uuid")
+    private UUID toId;
 
     @ManyToOne
     @JoinColumn(name = "graph_id")
@@ -34,32 +38,40 @@ public class ImmutableGraphEdgeEntity {
         // JPA requires a no-arg constructor
     }
 
-    public ImmutableGraphEdgeEntity(Integer fromId, Integer toId) {
+    public ImmutableGraphEdgeEntity(UUID fromId, UUID toId) {
+        this.id = UuidV7Generator.generate();
         this.fromId = fromId;
         this.toId = toId;
     }
 
-    public Integer getId() {
+    @PrePersist
+    private void ensureId() {
+        if (this.id == null) {
+            this.id = UuidV7Generator.generate();
+        }
+    }
+
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
-    public Integer getFromId() {
+    public UUID getFromId() {
         return fromId;
     }
 
-    public void setFromId(Integer fromId) {
+    public void setFromId(UUID fromId) {
         this.fromId = fromId;
     }
 
-    public Integer getToId() {
+    public UUID getToId() {
         return toId;
     }
 
-    public void setToId(Integer toId) {
+    public void setToId(UUID toId) {
         this.toId = toId;
     }
 

@@ -1,28 +1,29 @@
 package com.robsartin.graphs.models;
 
 import com.robsartin.graphs.infrastructure.ImmutableGraph;
+import com.robsartin.graphs.infrastructure.UuidV7Generator;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PostLoad;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 @Entity
 @Table(name = "graphs")
 public class Graph {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @Column(columnDefinition = "uuid")
+    private UUID id;
 
     private String name;
 
@@ -37,15 +38,23 @@ public class Graph {
     }
 
     public Graph(String name) {
+        this.id = UuidV7Generator.generate();
         this.name = name;
         this.immutableGraph = new ImmutableGraph<>();
     }
 
-    public Integer getId() {
+    @PrePersist
+    private void ensureId() {
+        if (this.id == null) {
+            this.id = UuidV7Generator.generate();
+        }
+    }
+
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -82,13 +91,13 @@ public class Graph {
         return node;
     }
 
-    public void addEdge(int fromNodeId, int toNodeId) {
+    public void addEdge(UUID fromNodeId, UUID toNodeId) {
         this.immutableGraph = this.immutableGraph.addEdge(fromNodeId, toNodeId, "edge");
     }
 
-    public GraphNode findNodeByGraphNodeId(int graphNodeId) {
+    public GraphNode findNodeById(UUID nodeId) {
         return nodes.stream()
-                .filter(n -> n.getGraphNodeId() != null && n.getGraphNodeId() == graphNodeId)
+                .filter(n -> n.getId() != null && n.getId().equals(nodeId))
                 .findFirst()
                 .orElse(null);
     }
@@ -96,13 +105,13 @@ public class Graph {
     @PostLoad
     private void reconstructImmutableGraph() {
         this.immutableGraph = new ImmutableGraph<>();
-        nodes.stream()
-                .filter(n -> n.getGraphNodeId() != null)
-                .sorted(Comparator.comparing(GraphNode::getGraphNodeId))
-                .forEach(node -> {
-                    ImmutableGraph.GraphWithNode<String, String> result = immutableGraph.addNode(node.getName());
-                    this.immutableGraph = result.getGraph();
-                });
+        for (GraphNode node : nodes) {
+            if (node.getId() != null) {
+                ImmutableGraph.GraphWithNode<String, String> result =
+                    immutableGraph.addNodeWithId(node.getId(), node.getName());
+                this.immutableGraph = result.getGraph();
+            }
+        }
     }
 
     @Override

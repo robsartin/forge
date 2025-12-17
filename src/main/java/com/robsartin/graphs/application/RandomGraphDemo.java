@@ -24,17 +24,20 @@ public class RandomGraphDemo {
         System.out.println("Graph created successfully!");
         System.out.println();
 
-        // Perform depth-first traversal starting from node 0 (labeled "1")
+        // Perform traversals using the first node
+        UUID startNode = graph.getNodeIds().iterator().next();
+
+        // Perform depth-first traversal starting from first node
         System.out.println("=== Depth-First Traversal ===");
-        graph.depthFirstTraversal(0, context -> {
+        graph.depthFirstTraversal(startNode, context -> {
             System.out.println(context.getLabel());
         });
 
         System.out.println();
 
-        // Perform breadth-first traversal starting from node 0 (labeled "1")
+        // Perform breadth-first traversal starting from first node
         System.out.println("=== Breadth-First Traversal ===");
-        graph.breadthFirstTraversal(0, context -> {
+        graph.breadthFirstTraversal(startNode, context -> {
             System.out.println(context.getLabel());
         });
     }
@@ -46,13 +49,13 @@ public class RandomGraphDemo {
      */
     private static ImmutableGraph<String, Integer> createRandomGraphWithPreferentialAttachment() {
         ImmutableGraph<String, Integer> graph = new ImmutableGraph<>();
-        int[] nodeIds = new int[NUM_NODES];
+        List<UUID> nodeIds = new ArrayList<>();
 
         // Create all nodes first (labeled "1" through "10")
         for (int i = 0; i < NUM_NODES; i++) {
             var result = graph.addNode(String.valueOf(i + 1));
             graph = result.getGraph();
-            nodeIds[i] = result.getNodeId();
+            nodeIds.add(result.getNodeId());
         }
 
         // Track degree of each node for preferential attachment
@@ -72,7 +75,7 @@ public class RandomGraphDemo {
 
             // Add the edge
             try {
-                graph = graph.addEdge(nodeIds[fromIndex], nodeIds[toIndex], edgeCount + 1);
+                graph = graph.addEdge(nodeIds.get(fromIndex), nodeIds.get(toIndex), edgeCount + 1);
                 degrees[fromIndex]++;
                 degrees[toIndex]++;
             } catch (Exception e) {

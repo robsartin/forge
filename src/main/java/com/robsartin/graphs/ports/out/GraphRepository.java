@@ -4,6 +4,7 @@ import com.robsartin.graphs.models.Graph;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Port for Graph persistence operations.
@@ -26,7 +27,7 @@ public interface GraphRepository {
      * @param id the graph ID
      * @return an Optional containing the graph if found, or empty if not found
      */
-    Optional<Graph> findById(Integer id);
+    Optional<Graph> findById(UUID id);
 
     /**
      * Retrieves all graphs from the repository.
@@ -40,7 +41,7 @@ public interface GraphRepository {
      *
      * @param id the graph ID to delete
      */
-    void deleteById(Integer id);
+    void deleteById(UUID id);
 
     /**
      * Checks if a graph exists with the given ID.
@@ -48,7 +49,7 @@ public interface GraphRepository {
      * @param id the graph ID
      * @return true if a graph exists, false otherwise
      */
-    boolean existsById(Integer id);
+    boolean existsById(UUID id);
 
     /**
      * Deletes all graphs from the repository.

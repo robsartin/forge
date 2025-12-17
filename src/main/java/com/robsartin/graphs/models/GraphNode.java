@@ -1,26 +1,24 @@
 package com.robsartin.graphs.models;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.util.Objects;
+import java.util.UUID;
 
 @Entity
 @Table(name = "graph_nodes")
 public class GraphNode {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @Column(columnDefinition = "uuid")
+    private UUID id;
 
     private String name;
-
-    private Integer graphNodeId;
 
     @ManyToOne
     @JoinColumn(name = "graph_id")
@@ -30,20 +28,16 @@ public class GraphNode {
         // JPA requires a no-arg constructor
     }
 
-    public GraphNode(String name) {
+    public GraphNode(String name, UUID id) {
+        this.id = id;
         this.name = name;
     }
 
-    public GraphNode(String name, Integer graphNodeId) {
-        this.name = name;
-        this.graphNodeId = graphNodeId;
-    }
-
-    public Integer getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -53,14 +47,6 @@ public class GraphNode {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public Integer getGraphNodeId() {
-        return graphNodeId;
-    }
-
-    public void setGraphNodeId(Integer graphNodeId) {
-        this.graphNodeId = graphNodeId;
     }
 
     public Graph getGraph() {
@@ -89,7 +75,6 @@ public class GraphNode {
         return "GraphNode{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
-                ", graphNodeId=" + graphNodeId +
                 '}';
     }
 }

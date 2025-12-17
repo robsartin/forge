@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Adapter that implements the ImmutableGraphRepository port using Spring Data JPA.
@@ -26,8 +27,8 @@ public class ImmutableGraphRepositoryAdapter implements ImmutableGraphRepository
     }
 
     @Override
-    public Optional<ImmutableGraphEntity> findById(Integer graphId) {
-        return jpaImmutableGraphRepository.findById(graphId);
+    public Optional<ImmutableGraphEntity> findById(UUID id) {
+        return jpaImmutableGraphRepository.findById(id);
     }
 
     @Override
@@ -36,13 +37,13 @@ public class ImmutableGraphRepositoryAdapter implements ImmutableGraphRepository
     }
 
     @Override
-    public void deleteById(Integer graphId) {
-        jpaImmutableGraphRepository.deleteById(graphId);
+    public void deleteById(UUID id) {
+        jpaImmutableGraphRepository.deleteById(id);
     }
 
     @Override
-    public boolean existsById(Integer graphId) {
-        return jpaImmutableGraphRepository.existsById(graphId);
+    public boolean existsById(UUID id) {
+        return jpaImmutableGraphRepository.existsById(id);
     }
 
     @Override
