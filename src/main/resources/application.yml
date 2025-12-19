@@ -63,6 +63,8 @@ management:
   endpoint:
     health:
       show-details: always
+    env:
+      show-values: always
   metrics:
     tags:
       application: ${spring.application.name}

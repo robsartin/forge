@@ -29,8 +29,7 @@ public class TestOpenFeatureConfiguration {
                         .variant("on", true)
                         .variant("off", false)
                         .defaultVariant("on")
-                        .build()
-        );
+                        .build());
 
         api.setProviderAndWait(new InMemoryProvider(flags));
 

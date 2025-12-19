@@ -2,15 +2,13 @@ package com.robsartin.graphs.infrastructure;
 
 import com.robsartin.graphs.config.CacheConfiguration;
 import com.robsartin.graphs.config.OpenFeatureConfiguration;
-import com.robsartin.graphs.config.TestOpenFeatureConfiguration;
 import dev.openfeature.sdk.Client;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.cache.CacheManager;
-import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.Objects;
 
@@ -18,13 +16,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
-@Import(TestOpenFeatureConfiguration.class)
 class FeatureFlagServiceCacheTest {
 
     @Autowired
     private FeatureFlagService featureFlagService;
 
-    @SpyBean
+    @MockitoBean
     private Client openFeatureClient;
 
     @Autowired
@@ -34,7 +31,10 @@ class FeatureFlagServiceCacheTest {
     void setUp() {
         // Clear cache before each test
         Objects.requireNonNull(cacheManager.getCache(CacheConfiguration.FEATURE_FLAGS_CACHE)).clear();
-        reset(openFeatureClient);
+
+        // Default behavior for the mock
+        when(openFeatureClient.getBooleanValue(eq(OpenFeatureConfiguration.FLAG_DELETE_ENABLED), anyBoolean()))
+                .thenReturn(true);
     }
 
     @Test
@@ -46,7 +46,7 @@ class FeatureFlagServiceCacheTest {
 
         // Then - OpenFeature client should only be called once
         verify(openFeatureClient, times(1))
-            .getBooleanValue(eq(OpenFeatureConfiguration.FLAG_DELETE_ENABLED), anyBoolean());
+                .getBooleanValue(eq(OpenFeatureConfiguration.FLAG_DELETE_ENABLED), anyBoolean());
     }
 
     @Test
