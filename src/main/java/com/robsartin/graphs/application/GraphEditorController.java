@@ -252,6 +252,37 @@ public class GraphEditorController {
                             margin-left: 16px;
                             margin-top: 8px;
                         }
+                        .node-edit-input {
+                            position: absolute;
+                            background: white;
+                            border: 2px solid #3498db;
+                            border-radius: 4px;
+                            padding: 4px 8px;
+                            font-size: 14px;
+                            min-width: 100px;
+                            transform: translate(-50%, -50%);
+                            z-index: 1000;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                        }
+                        .node-edit-input:focus {
+                            outline: none;
+                            border-color: #2980b9;
+                        }
+                        .drag-line {
+                            stroke: #3498db;
+                            stroke-width: 2px;
+                            stroke-dasharray: 5,5;
+                            fill: none;
+                            pointer-events: none;
+                        }
+                        .node.drag-source circle {
+                            fill: #27ae60;
+                            stroke: #1e8449;
+                        }
+                        .node.drag-target circle {
+                            fill: #9b59b6;
+                            stroke: #7d3c98;
+                        }
                     </style>
                 </head>
                 <body>
@@ -302,9 +333,12 @@ public class GraphEditorController {
                         };
 
                         // D3 Graph Visualization Component
-                        function GraphVisualization({ nodes, edges, selectedNode, onNodeClick }) {
+                        function GraphVisualization({ nodes, edges, selectedNode, editingNode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart }) {
                             const svgRef = useRef(null);
                             const simulationRef = useRef(null);
+                            const dragLineRef = useRef(null);
+                            const dragSourceRef = useRef(null);
+                            const transformRef = useRef(d3.zoomIdentity);
 
                             useEffect(() => {
                                 if (!svgRef.current) return;
@@ -316,7 +350,8 @@ public class GraphEditorController {
                                 svg.selectAll('*').remove();
 
                                 // Add arrow marker definition
-                                svg.append('defs').append('marker')
+                                const defs = svg.append('defs');
+                                defs.append('marker')
                                     .attr('id', 'arrowhead')
                                     .attr('viewBox', '-0 -5 10 10')
                                     .attr('refX', 25)
@@ -330,11 +365,33 @@ public class GraphEditorController {
 
                                 const g = svg.append('g');
 
+                                // Add drag line (initially hidden)
+                                const dragLine = g.append('line')
+                                    .attr('class', 'drag-line')
+                                    .style('display', 'none');
+                                dragLineRef.current = dragLine;
+
                                 // Add zoom behavior
                                 const zoom = d3.zoom()
                                     .scaleExtent([0.1, 4])
-                                    .on('zoom', (event) => g.attr('transform', event.transform));
+                                    .filter((event) => {
+                                        // Allow zoom on scroll and right-click drag, but not on left-click
+                                        return event.type === 'wheel' || event.button === 2;
+                                    })
+                                    .on('zoom', (event) => {
+                                        transformRef.current = event.transform;
+                                        g.attr('transform', event.transform);
+                                    });
                                 svg.call(zoom);
+
+                                // Handle canvas click to create node
+                                svg.on('click', (event) => {
+                                    // Only create node if clicking directly on the SVG (not on a node)
+                                    if (event.target === svgRef.current) {
+                                        const [x, y] = d3.pointer(event, g.node());
+                                        onCanvasClick(x, y);
+                                    }
+                                });
 
                                 // Create force simulation
                                 const simulation = d3.forceSimulation(nodes)
@@ -354,32 +411,79 @@ public class GraphEditorController {
                                     .attr('class', 'link')
                                     .attr('marker-end', 'url(#arrowhead)');
 
+                                // Helper function to find node at position
+                                const findNodeAtPosition = (x, y, excludeId) => {
+                                    const nodeRadius = 20;
+                                    for (const n of nodes) {
+                                        if (n.id === excludeId) continue;
+                                        const dx = n.x - x;
+                                        const dy = n.y - y;
+                                        if (Math.sqrt(dx * dx + dy * dy) <= nodeRadius) {
+                                            return n;
+                                        }
+                                    }
+                                    return null;
+                                };
+
                                 // Draw nodes
                                 const node = g.append('g')
                                     .selectAll('.node')
                                     .data(nodes)
                                     .enter()
                                     .append('g')
-                                    .attr('class', d => `node ${selectedNode === d.id ? 'selected' : ''}`)
+                                    .attr('class', d => `node ${selectedNode === d.id ? 'selected' : ''} ${editingNode === d.id ? 'editing' : ''}`)
                                     .call(d3.drag()
                                         .on('start', (event, d) => {
                                             if (!event.active) simulation.alphaTarget(0.3).restart();
                                             d.fx = d.x;
                                             d.fy = d.y;
+                                            dragSourceRef.current = d;
+                                            // Show drag line
+                                            dragLine
+                                                .style('display', null)
+                                                .attr('x1', d.x)
+                                                .attr('y1', d.y)
+                                                .attr('x2', d.x)
+                                                .attr('y2', d.y);
+                                            // Highlight source node
+                                            d3.select(event.sourceEvent.target.closest('.node')).classed('drag-source', true);
                                         })
                                         .on('drag', (event, d) => {
                                             d.fx = event.x;
                                             d.fy = event.y;
+                                            // Update drag line
+                                            dragLine
+                                                .attr('x2', event.x)
+                                                .attr('y2', event.y);
+                                            // Highlight potential target node
+                                            const targetNode = findNodeAtPosition(event.x, event.y, d.id);
+                                            node.classed('drag-target', n => targetNode && n.id === targetNode.id);
                                         })
                                         .on('end', (event, d) => {
                                             if (!event.active) simulation.alphaTarget(0);
                                             d.fx = null;
                                             d.fy = null;
+                                            // Hide drag line
+                                            dragLine.style('display', 'none');
+                                            // Remove highlights
+                                            node.classed('drag-source', false);
+                                            node.classed('drag-target', false);
+                                            // Check if dropped on another node
+                                            const targetNode = findNodeAtPosition(event.x, event.y, d.id);
+                                            if (targetNode && dragSourceRef.current) {
+                                                onEdgeCreate(dragSourceRef.current.id, targetNode.id);
+                                            }
+                                            dragSourceRef.current = null;
                                         })
                                     )
                                     .on('click', (event, d) => {
                                         event.stopPropagation();
-                                        onNodeClick(d.id);
+                                        // If already editing this node, don't restart
+                                        if (editingNode === d.id) return;
+                                        // Check if this was a drag or a click
+                                        if (event.defaultPrevented) return;
+                                        // Start editing mode for the node
+                                        onEditStart(d);
                                     });
 
                                 node.append('circle')
@@ -400,7 +504,7 @@ public class GraphEditorController {
                                 });
 
                                 return () => simulation.stop();
-                            }, [nodes, edges, selectedNode, onNodeClick]);
+                            }, [nodes, edges, selectedNode, editingNode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart]);
 
                             return <svg ref={svgRef} className="graph-svg" />;
                         }
@@ -412,6 +516,9 @@ public class GraphEditorController {
                             const [nodes, setNodes] = useState([]);
                             const [edges, setEdges] = useState([]);
                             const [selectedNode, setSelectedNode] = useState(null);
+                            const [editingNode, setEditingNode] = useState(null);
+                            const [editingName, setEditingName] = useState('');
+                            const [editingPosition, setEditingPosition] = useState({ x: 0, y: 0 });
                             const [newGraphName, setNewGraphName] = useState('');
                             const [newNodeName, setNewNodeName] = useState('');
                             const [edgeFrom, setEdgeFrom] = useState('');
@@ -419,6 +526,7 @@ public class GraphEditorController {
                             const [loading, setLoading] = useState(false);
                             const [error, setError] = useState(null);
                             const [status, setStatus] = useState('Ready');
+                            const graphContainerRef = useRef(null);
 
                             // Load graphs on mount
                             useEffect(() => {
@@ -523,6 +631,77 @@ public class GraphEditorController {
                                 setSelectedNode(nodeId === selectedNode ? null : nodeId);
                             }, [selectedNode]);
 
+                            // Handle canvas click to create a new node
+                            const handleCanvasClick = useCallback(async (x, y) => {
+                                if (!selectedGraph) return;
+                                const nodeName = `Node ${nodes.length + 1}`;
+                                try {
+                                    const newNode = await api.createNode(selectedGraph.id, nodeName);
+                                    setNodes(prev => [...prev, { ...newNode, x, y }]);
+                                    setStatus(`Created node: ${nodeName}`);
+                                    // Immediately start editing the new node
+                                    setTimeout(() => {
+                                        const container = graphContainerRef.current;
+                                        if (container) {
+                                            const rect = container.getBoundingClientRect();
+                                            setEditingNode(newNode.id);
+                                            setEditingName(nodeName);
+                                            setEditingPosition({ x: x + rect.left + 300, y: y + rect.top + 56 }); // Account for sidebar and header
+                                        }
+                                    }, 50);
+                                } catch (err) {
+                                    setError('Failed to create node');
+                                }
+                            }, [selectedGraph, nodes.length]);
+
+                            // Handle starting to edit a node name
+                            const handleEditStart = useCallback((node) => {
+                                const container = graphContainerRef.current;
+                                if (container) {
+                                    const rect = container.getBoundingClientRect();
+                                    setEditingNode(node.id);
+                                    setEditingName(node.name);
+                                    setEditingPosition({ x: node.x + rect.left, y: node.y + rect.top });
+                                }
+                            }, []);
+
+                            // Handle renaming a node
+                            const handleNodeRename = useCallback((newName) => {
+                                if (!editingNode || !newName.trim()) {
+                                    setEditingNode(null);
+                                    return;
+                                }
+                                // Update node name locally (note: would need API endpoint for persistence)
+                                setNodes(prev => prev.map(n =>
+                                    n.id === editingNode ? { ...n, name: newName.trim() } : n
+                                ));
+                                setStatus(`Renamed node to: ${newName.trim()}`);
+                                setEditingNode(null);
+                            }, [editingNode]);
+
+                            // Handle creating an edge by dragging from one node to another
+                            const handleEdgeCreate = useCallback(async (sourceId, targetId) => {
+                                if (!selectedGraph) return;
+                                // Check if edge already exists
+                                const edgeExists = edges.some(e =>
+                                    (e.source === sourceId || e.source?.id === sourceId) &&
+                                    (e.target === targetId || e.target?.id === targetId)
+                                );
+                                if (edgeExists) {
+                                    setStatus('Edge already exists');
+                                    return;
+                                }
+                                try {
+                                    await api.addEdge(selectedGraph.id, sourceId, targetId);
+                                    setEdges(prev => [...prev, { source: sourceId, target: targetId }]);
+                                    const sourceNode = nodes.find(n => n.id === sourceId);
+                                    const targetNode = nodes.find(n => n.id === targetId);
+                                    setStatus(`Created edge: ${sourceNode?.name} -> ${targetNode?.name}`);
+                                } catch (err) {
+                                    setError('Failed to create edge');
+                                }
+                            }, [selectedGraph, edges, nodes]);
+
                             return (
                                 <div className="graph-editor">
                                     <header className="header">
@@ -537,10 +716,10 @@ public class GraphEditorController {
                                                 <strong>How to use:</strong>
                                                 <ul>
                                                     <li>Create or select a graph</li>
-                                                    <li>Add nodes to the graph</li>
-                                                    <li>Create edges between nodes</li>
-                                                    <li>Drag nodes to reposition</li>
-                                                    <li>Scroll to zoom</li>
+                                                    <li><strong>Click canvas</strong> to create a node</li>
+                                                    <li><strong>Click a node</strong> to rename it</li>
+                                                    <li><strong>Drag from node to node</strong> to create edge</li>
+                                                    <li>Scroll to zoom, drag to reposition</li>
                                                 </ul>
                                             </div>
 
@@ -642,7 +821,7 @@ public class GraphEditorController {
                                                 </>
                                             )}
                                         </aside>
-                                        <main className="graph-container">
+                                        <main className="graph-container" ref={graphContainerRef}>
                                             {loading ? (
                                                 <div className="loading">Loading...</div>
                                             ) : selectedGraph ? (
@@ -650,12 +829,37 @@ public class GraphEditorController {
                                                     nodes={nodes}
                                                     edges={edges}
                                                     selectedNode={selectedNode}
+                                                    editingNode={editingNode}
                                                     onNodeClick={handleNodeClick}
+                                                    onCanvasClick={handleCanvasClick}
+                                                    onEdgeCreate={handleEdgeCreate}
+                                                    onEditStart={handleEditStart}
                                                 />
                                             ) : (
                                                 <div className="loading">
                                                     Select a graph to visualize or create a new one
                                                 </div>
+                                            )}
+                                            {editingNode && (
+                                                <input
+                                                    type="text"
+                                                    className="node-edit-input"
+                                                    value={editingName}
+                                                    onChange={(e) => setEditingName(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            handleNodeRename(editingName);
+                                                        } else if (e.key === 'Escape') {
+                                                            setEditingNode(null);
+                                                        }
+                                                    }}
+                                                    onBlur={() => handleNodeRename(editingName)}
+                                                    style={{
+                                                        left: editingPosition.x,
+                                                        top: editingPosition.y
+                                                    }}
+                                                    autoFocus
+                                                />
                                             )}
                                         </main>
                                     </div>
