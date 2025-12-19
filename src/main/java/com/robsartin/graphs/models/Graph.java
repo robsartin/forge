@@ -30,6 +30,9 @@ public class Graph {
     @OneToMany(mappedBy = "graph", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GraphNode> nodes = new ArrayList<>();
 
+    @OneToMany(mappedBy = "graph", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GraphEdge> edges = new ArrayList<>();
+
     @Transient
     private ImmutableGraph<String, String> immutableGraph = new ImmutableGraph<>();
 
@@ -93,6 +96,16 @@ public class Graph {
 
     public void addEdge(UUID fromNodeId, UUID toNodeId) {
         this.immutableGraph = this.immutableGraph.addEdge(fromNodeId, toNodeId, "edge");
+        GraphEdge edge = new GraphEdge(this, fromNodeId, toNodeId);
+        this.edges.add(edge);
+    }
+
+    public List<GraphEdge> getEdges() {
+        return edges;
+    }
+
+    public void setEdges(List<GraphEdge> edges) {
+        this.edges = edges;
     }
 
     public GraphNode findNodeById(UUID nodeId) {
@@ -105,12 +118,18 @@ public class Graph {
     @PostLoad
     private void reconstructImmutableGraph() {
         this.immutableGraph = new ImmutableGraph<>();
+        // Reconstruct nodes
         for (GraphNode node : nodes) {
             if (node.getId() != null) {
                 ImmutableGraph.GraphWithNode<String, String> result =
                     immutableGraph.addNodeWithId(node.getId(), node.getName());
                 this.immutableGraph = result.getGraph();
             }
+        }
+        // Reconstruct edges
+        for (GraphEdge edge : edges) {
+            this.immutableGraph = this.immutableGraph.addEdge(
+                edge.getFromNodeId(), edge.getToNodeId(), "edge");
         }
     }
 
