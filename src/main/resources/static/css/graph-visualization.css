@@ -1,0 +1,64 @@
+/* Graph Visualization SVG Styles */
+
+/* Node styles */
+.node {
+    cursor: pointer;
+}
+
+.node circle {
+    fill: #3498db;
+    stroke: #2980b9;
+    stroke-width: 2px;
+    transition: all 0.2s;
+}
+
+.node:hover circle {
+    fill: #2980b9;
+    stroke: #1a5276;
+}
+
+.node.selected circle {
+    fill: #e74c3c;
+    stroke: #c0392b;
+}
+
+.node text {
+    font-size: 12px;
+    fill: white;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+    font-weight: 500;
+}
+
+/* Edge/link styles */
+.link {
+    stroke: #95a5a6;
+    stroke-width: 2px;
+    fill: none;
+}
+
+.link-arrow {
+    fill: #95a5a6;
+}
+
+/* Drag line for edge creation */
+.drag-line {
+    stroke: #3498db;
+    stroke-width: 2px;
+    stroke-dasharray: 5, 5;
+    fill: none;
+    pointer-events: none;
+}
+
+/* Drag source node highlight */
+.node.drag-source circle {
+    fill: #27ae60;
+    stroke: #1e8449;
+}
+
+/* Drag target node highlight */
+.node.drag-target circle {
+    fill: #9b59b6;
+    stroke: #7d3c98;
+}
