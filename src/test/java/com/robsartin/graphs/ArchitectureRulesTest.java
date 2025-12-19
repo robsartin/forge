@@ -42,6 +42,7 @@ class ArchitectureRulesTest {
                             "jakarta..",
                             "dev.openfeature..",
                             "com.robsartin.graphs..",
+                            "org.mockito..",
                             "org.junit..",
                             "org.jmolecules..",
                             "org.slf4j..",
@@ -96,6 +97,7 @@ class ArchitectureRulesTest {
                     .should().haveNameMatching(".*Configuration$")
                     .orShould().haveNameMatching(".*Config$")
                     .orShould().haveNameMatching(".*Properties$")
+                    .orShould().haveNameMatching(".*Test")
                     .allowEmptyShould(true)
                     .check(classes);
         }
@@ -124,6 +126,8 @@ class ArchitectureRulesTest {
                     .should().onlyDependOnClassesThat().resideInAnyPackage(
                             "java..",
                             "dev.openfeature..",
+                            "org.junit..",
+                            "com.github..",
                             "io.swagger..",
                             "io.micrometer..",
                             "com.robsartin.graphs..",

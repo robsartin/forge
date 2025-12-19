@@ -34,7 +34,7 @@ public class ImmutableGraphEntity {
     @OneToMany(mappedBy = "graph", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ImmutableGraphEdgeEntity> edges = new ArrayList<>();
 
-    protected ImmutableGraphEntity() {
+    public ImmutableGraphEntity() {
         // JPA requires a no-arg constructor
     }
 
