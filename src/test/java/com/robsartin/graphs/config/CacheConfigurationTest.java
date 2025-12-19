@@ -66,7 +66,7 @@ class CacheConfigurationTest {
 
         // Should be at or below maximum size (100) after eviction
         assertTrue(nativeCache.estimatedSize() <= 100,
-            "Cache should evict entries when exceeding max size. Size: " + nativeCache.estimatedSize());
+                "Cache should evict entries when exceeding max size. Size: " + nativeCache.estimatedSize());
     }
 
     @Test
@@ -84,19 +84,22 @@ class CacheConfigurationTest {
             nativeCache.put("key" + i, "value" + i);
         }
 
-        // Access key0 to make it recently used
-        nativeCache.getIfPresent("key0");
+        // Access key0 multiple times to make it frequently used and ensure it stays in
+        // the cache
+        for (int i = 0; i < 10; i++) {
+            nativeCache.getIfPresent("key0");
+        }
 
         // Add more entries to trigger eviction
-        for (int i = 100; i < 150; i++) {
+        for (int i = 100; i < 200; i++) {
             nativeCache.put("key" + i, "value" + i);
         }
 
         // Trigger cleanup
         nativeCache.cleanUp();
 
-        // key0 should still be present (recently used)
+        // key0 should still be present (frequently used)
         assertNotNull(nativeCache.getIfPresent("key0"),
-            "Recently accessed entry should not be evicted");
+                "Frequently accessed entry should not be evicted. Current size: " + nativeCache.estimatedSize());
     }
 }
