@@ -354,7 +354,7 @@ public class GraphEditorController {
                                 defs.append('marker')
                                     .attr('id', 'arrowhead')
                                     .attr('viewBox', '-0 -5 10 10')
-                                    .attr('refX', 25)
+                                    .attr('refX', 30)
                                     .attr('refY', 0)
                                     .attr('orient', 'auto')
                                     .attr('markerWidth', 8)
@@ -395,10 +395,10 @@ public class GraphEditorController {
 
                                 // Create force simulation
                                 const simulation = d3.forceSimulation(nodes)
-                                    .force('link', d3.forceLink(edges).id(d => d.id).distance(120))
-                                    .force('charge', d3.forceManyBody().strength(-300))
+                                    .force('link', d3.forceLink(edges).id(d => d.id).distance(150))
+                                    .force('charge', d3.forceManyBody().strength(-400))
                                     .force('center', d3.forceCenter(width / 2, height / 2))
-                                    .force('collision', d3.forceCollide().radius(40));
+                                    .force('collision', d3.forceCollide().radius(50));
 
                                 simulationRef.current = simulation;
 
@@ -413,7 +413,7 @@ public class GraphEditorController {
 
                                 // Helper function to find node at position
                                 const findNodeAtPosition = (x, y, excludeId) => {
-                                    const nodeRadius = 20;
+                                    const nodeRadius = 25;
                                     for (const n of nodes) {
                                         if (n.id === excludeId) continue;
                                         const dx = n.x - x;
@@ -435,10 +435,11 @@ public class GraphEditorController {
                                     .call(d3.drag()
                                         .on('start', (event, d) => {
                                             if (!event.active) simulation.alphaTarget(0.3).restart();
+                                            // Fix node in place (don't let it move during edge creation)
                                             d.fx = d.x;
                                             d.fy = d.y;
                                             dragSourceRef.current = d;
-                                            // Show drag line
+                                            // Show drag line from node center
                                             dragLine
                                                 .style('display', null)
                                                 .attr('x1', d.x)
@@ -449,9 +450,8 @@ public class GraphEditorController {
                                             d3.select(event.sourceEvent.target.closest('.node')).classed('drag-source', true);
                                         })
                                         .on('drag', (event, d) => {
-                                            d.fx = event.x;
-                                            d.fy = event.y;
-                                            // Update drag line
+                                            // DON'T move the node - just update the drag line
+                                            // Keep node fixed at original position
                                             dragLine
                                                 .attr('x2', event.x)
                                                 .attr('y2', event.y);
@@ -461,6 +461,7 @@ public class GraphEditorController {
                                         })
                                         .on('end', (event, d) => {
                                             if (!event.active) simulation.alphaTarget(0);
+                                            // Release the node so simulation can move it
                                             d.fx = null;
                                             d.fy = null;
                                             // Hide drag line
@@ -487,10 +488,10 @@ public class GraphEditorController {
                                     });
 
                                 node.append('circle')
-                                    .attr('r', 20);
+                                    .attr('r', 25);
 
                                 node.append('text')
-                                    .text(d => d.name.substring(0, 3).toUpperCase());
+                                    .text(d => d.name.length > 8 ? d.name.substring(0, 7) + '...' : d.name);
 
                                 // Update positions on each tick
                                 simulation.on('tick', () => {
