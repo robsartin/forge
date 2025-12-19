@@ -275,6 +275,42 @@ public class GraphController {
     }
 
     /**
+     * PATCH /graphs/{id}/nodes/{nodeId} - Updates a node's name
+     *
+     * @param id the graph ID
+     * @param nodeId the node ID
+     * @param request the update request containing the new name
+     * @return the updated node if found, 404 if not found
+     */
+    @PatchMapping("/{id}/nodes/{nodeId}")
+    @Operation(summary = "Update node name", description = "Updates the name of a specific node in the graph")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Node updated successfully",
+                    content = @Content(schema = @Schema(implementation = NodeResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph or node not found", content = @Content)
+    })
+    @Timed(value = "node.update", description = "Time taken to update a node")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<NodeResponse> updateNode(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "Node ID", required = true) @PathVariable UUID nodeId,
+            @Valid @RequestBody CreateNodeRequest request) {
+        return graphRepository.findById(id)
+                .map(graph -> graph.getNodes().stream()
+                        .filter(n -> n.getId().equals(nodeId))
+                        .findFirst()
+                        .map(node -> {
+                            node.setName(request.name());
+                            graphRepository.save(graph);
+                            return ResponseEntity.ok(new NodeResponse(node.getId(), node.getName()));
+                        })
+                        .orElse(ResponseEntity.notFound().build()))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
      * POST /graphs/{id}/nodes/{fromId}/{toId} - Adds an edge between two nodes
      *
      * @param id the graph ID

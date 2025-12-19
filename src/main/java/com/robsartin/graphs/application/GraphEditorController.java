@@ -329,6 +329,14 @@ public class GraphEditorController {
                             async getNodeWithLinks(graphId, nodeId) {
                                 const res = await fetch(`${API_BASE}/graphs/${graphId}/nodes/${nodeId}`);
                                 return res.json();
+                            },
+                            async updateNode(graphId, nodeId, name) {
+                                const res = await fetch(`${API_BASE}/graphs/${graphId}/nodes/${nodeId}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ name })
+                                });
+                                return res.json();
                             }
                         };
 
@@ -339,6 +347,7 @@ public class GraphEditorController {
                             const dragLineRef = useRef(null);
                             const dragSourceRef = useRef(null);
                             const transformRef = useRef(d3.zoomIdentity);
+                            const nodePositionsRef = useRef(new Map()); // Store node positions
 
                             useEffect(() => {
                                 if (!svgRef.current) return;
@@ -346,6 +355,15 @@ public class GraphEditorController {
                                 const svg = d3.select(svgRef.current);
                                 const width = svgRef.current.clientWidth;
                                 const height = svgRef.current.clientHeight;
+
+                                // Preserve positions from previous render
+                                nodes.forEach(n => {
+                                    const storedPos = nodePositionsRef.current.get(n.id);
+                                    if (storedPos) {
+                                        n.x = storedPos.x;
+                                        n.y = storedPos.y;
+                                    }
+                                });
 
                                 svg.selectAll('*').remove();
 
@@ -393,12 +411,20 @@ public class GraphEditorController {
                                     }
                                 });
 
+                                // Check if we have stored positions (meaning this is a re-render, not initial load)
+                                const hasStoredPositions = nodes.some(n => nodePositionsRef.current.has(n.id));
+
                                 // Create force simulation
                                 const simulation = d3.forceSimulation(nodes)
                                     .force('link', d3.forceLink(edges).id(d => d.id).distance(150))
                                     .force('charge', d3.forceManyBody().strength(-400))
                                     .force('center', d3.forceCenter(width / 2, height / 2))
                                     .force('collision', d3.forceCollide().radius(50));
+
+                                // If we have stored positions, reduce simulation intensity
+                                if (hasStoredPositions) {
+                                    simulation.alpha(0.1).alphaDecay(0.05);
+                                }
 
                                 simulationRef.current = simulation;
 
@@ -493,7 +519,7 @@ public class GraphEditorController {
                                 node.append('text')
                                     .text(d => d.name.length > 8 ? d.name.substring(0, 7) + '...' : d.name);
 
-                                // Update positions on each tick
+                                // Update positions on each tick and save to ref
                                 simulation.on('tick', () => {
                                     link
                                         .attr('x1', d => d.source.x)
@@ -502,6 +528,11 @@ public class GraphEditorController {
                                         .attr('y2', d => d.target.y);
 
                                     node.attr('transform', d => `translate(${d.x},${d.y})`);
+
+                                    // Save positions to ref for persistence across re-renders
+                                    nodes.forEach(n => {
+                                        nodePositionsRef.current.set(n.id, { x: n.x, y: n.y });
+                                    });
                                 });
 
                                 return () => simulation.stop();
@@ -667,18 +698,24 @@ public class GraphEditorController {
                             }, []);
 
                             // Handle renaming a node
-                            const handleNodeRename = useCallback((newName) => {
-                                if (!editingNode || !newName.trim()) {
+                            const handleNodeRename = useCallback(async (newName) => {
+                                if (!editingNode || !newName.trim() || !selectedGraph) {
                                     setEditingNode(null);
                                     return;
                                 }
-                                // Update node name locally (note: would need API endpoint for persistence)
-                                setNodes(prev => prev.map(n =>
-                                    n.id === editingNode ? { ...n, name: newName.trim() } : n
-                                ));
-                                setStatus(`Renamed node to: ${newName.trim()}`);
+                                try {
+                                    // Persist to backend
+                                    await api.updateNode(selectedGraph.id, editingNode, newName.trim());
+                                    // Update node name locally, preserving position
+                                    setNodes(prev => prev.map(n =>
+                                        n.id === editingNode ? { ...n, name: newName.trim() } : n
+                                    ));
+                                    setStatus(`Renamed node to: ${newName.trim()}`);
+                                } catch (err) {
+                                    setError('Failed to rename node');
+                                }
                                 setEditingNode(null);
-                            }, [editingNode]);
+                            }, [editingNode, selectedGraph]);
 
                             // Handle creating an edge by dragging from one node to another
                             const handleEdgeCreate = useCallback(async (sourceId, targetId) => {
