@@ -21,17 +21,24 @@ class GraphEditorControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    void shouldReturnGraphEditorPage() throws Exception {
+    void shouldRedirectToGraphEditorPage() throws Exception {
         mockMvc.perform(get("/edit_graph"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/graph-editor.html"));
+    }
+
+    @Test
+    void shouldReturnGraphEditorStaticPage() throws Exception {
+        mockMvc.perform(get("/graph-editor.html"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/html"))
                 .andExpect(content().string(containsString("<!DOCTYPE html>")))
-                .andExpect(content().string(containsString("graph-editor")));
+                .andExpect(content().string(containsString("Graph Editor")));
     }
 
     @Test
     void shouldIncludeReactAndD3Dependencies() throws Exception {
-        mockMvc.perform(get("/edit_graph"))
+        mockMvc.perform(get("/graph-editor.html"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("react")))
                 .andExpect(content().string(containsString("d3")));
@@ -39,7 +46,7 @@ class GraphEditorControllerTest {
 
     @Test
     void shouldIncludeGraphVisualizationContainer() throws Exception {
-        mockMvc.perform(get("/edit_graph"))
+        mockMvc.perform(get("/graph-editor.html"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"root\"")));
     }
