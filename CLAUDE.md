@@ -9,11 +9,11 @@
 **Forge** is a trial/experimental project repository currently in its initial phase. The repository is set up with Java-specific configurations but does not yet contain implementation code.
 
 ### Current State
-- **Status:** Skeleton/Initial Setup
-- **Primary Language:** Java (based on .gitignore configuration)
-- **Build Tools:** Not yet configured
-- **Dependencies:** Not yet defined
-- **Test Framework:** Not yet configured
+- **Status:** Active Development
+- **Primary Language:** Java 17
+- **Build Tools:** Maven
+- **Dependencies:** Spring Boot 3.4.1, JPA, Caffeine, Resilience4J, OpenFeature
+- **Test Framework:** JUnit 5, MockMvc, ArchUnit
 
 ### Repository Structure
 
@@ -157,9 +157,15 @@ When implementing code, be vigilant about:
 
 ## Build and Test Workflow
 
-**Note:** Build tools and testing frameworks are not yet configured.
+The project uses Maven as the build system.
 
-### When Build System is Added
+### Common Commands
+- Build: `mvn clean compile`
+- Run Tests: `mvn test`
+- Package: `mvn package`
+
+### Address any failures
+If tests fail, investigate logs and fix the root cause before committing.
 
 **Expected workflow:**
 1. Build the project
