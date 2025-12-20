@@ -3,6 +3,7 @@ package com.robsartin.graphs.models;
 import com.robsartin.graphs.infrastructure.UuidV7Generator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -12,36 +13,33 @@ import jakarta.persistence.Table;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Entity representing an edge in an immutable graph.
- * The edge connects two nodes identified by fromId and toId (which are node UUIDs).
- */
 @Entity
-@Table(name = "immutable_graph_edges")
-public class ImmutableGraphEdgeEntity {
+@Table(name = "graph_edges")
+public class GraphEdge {
 
     @Id
     @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @Column(columnDefinition = "uuid")
-    private UUID fromId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "graph_id", nullable = false)
+    private Graph graph;
 
-    @Column(columnDefinition = "uuid")
-    private UUID toId;
+    @Column(name = "from_node_id", nullable = false)
+    private UUID fromNodeId;
 
-    @ManyToOne
-    @JoinColumn(name = "graph_id")
-    private ImmutableGraphEntity graph;
+    @Column(name = "to_node_id", nullable = false)
+    private UUID toNodeId;
 
-    protected ImmutableGraphEdgeEntity() {
+    protected GraphEdge() {
         // JPA requires a no-arg constructor
     }
 
-    public ImmutableGraphEdgeEntity(UUID fromId, UUID toId) {
+    public GraphEdge(Graph graph, UUID fromNodeId, UUID toNodeId) {
         this.id = UuidV7Generator.generate();
-        this.fromId = fromId;
-        this.toId = toId;
+        this.graph = graph;
+        this.fromNodeId = fromNodeId;
+        this.toNodeId = toNodeId;
     }
 
     @PrePersist
@@ -59,36 +57,36 @@ public class ImmutableGraphEdgeEntity {
         this.id = id;
     }
 
-    public UUID getFromId() {
-        return fromId;
-    }
-
-    public void setFromId(UUID fromId) {
-        this.fromId = fromId;
-    }
-
-    public UUID getToId() {
-        return toId;
-    }
-
-    public void setToId(UUID toId) {
-        this.toId = toId;
-    }
-
-    public ImmutableGraphEntity getGraph() {
+    public Graph getGraph() {
         return graph;
     }
 
-    public void setGraph(ImmutableGraphEntity graph) {
+    public void setGraph(Graph graph) {
         this.graph = graph;
+    }
+
+    public UUID getFromNodeId() {
+        return fromNodeId;
+    }
+
+    public void setFromNodeId(UUID fromNodeId) {
+        this.fromNodeId = fromNodeId;
+    }
+
+    public UUID getToNodeId() {
+        return toNodeId;
+    }
+
+    public void setToNodeId(UUID toNodeId) {
+        this.toNodeId = toNodeId;
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        ImmutableGraphEdgeEntity that = (ImmutableGraphEdgeEntity) o;
-        return Objects.equals(id, that.id);
+        GraphEdge graphEdge = (GraphEdge) o;
+        return Objects.equals(id, graphEdge.id);
     }
 
     @Override
@@ -98,10 +96,10 @@ public class ImmutableGraphEdgeEntity {
 
     @Override
     public String toString() {
-        return "ImmutableGraphEdgeEntity{" +
+        return "GraphEdge{" +
                 "id=" + id +
-                ", fromId=" + fromId +
-                ", toId=" + toId +
+                ", fromNodeId=" + fromNodeId +
+                ", toNodeId=" + toNodeId +
                 '}';
     }
 }
