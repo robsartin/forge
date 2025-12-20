@@ -30,18 +30,6 @@ class CacheConfigurationTest {
     }
 
     @Test
-    void shouldCreateImmutableGraphsCache() {
-        var cache = cacheManager.getCache(CacheConfiguration.IMMUTABLE_GRAPHS_CACHE);
-        assertNotNull(cache, "Immutable graphs cache should exist");
-    }
-
-    @Test
-    void shouldCreateImmutableGraphByIdCache() {
-        var cache = cacheManager.getCache(CacheConfiguration.IMMUTABLE_GRAPH_BY_ID_CACHE);
-        assertNotNull(cache, "Immutable graph by ID cache should exist");
-    }
-
-    @Test
     void shouldCreateFeatureFlagsCache() {
         var cache = cacheManager.getCache(CacheConfiguration.FEATURE_FLAGS_CACHE);
         assertNotNull(cache, "Feature flags cache should exist");
