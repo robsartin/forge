@@ -266,24 +266,27 @@ function GraphEditor() {
                         </div>
                     </div>
 
-                    {selectedGraph && (
-                        <div className="node-list">
-                            <h2>Add Node</h2>
-                            <div className="form-group">
-                                <label>Node Name</label>
-                                <input
-                                    type="text"
-                                    value={newNodeName}
-                                    onChange={e => setNewNodeName(e.target.value)}
-                                    placeholder="Enter node name"
-                                    onKeyPress={e => e.key === 'Enter' && handleCreateNode()}
-                                />
-                            </div>
-                            <button className="btn btn-primary" onClick={handleCreateNode}>
-                                Add Node
-                            </button>
+                    <div className="node-list">
+                        <h2>Add Node</h2>
+                        <div className="form-group">
+                            <label>Node Name</label>
+                            <input
+                                type="text"
+                                value={newNodeName}
+                                onChange={e => setNewNodeName(e.target.value)}
+                                placeholder={selectedGraph ? "Enter node name" : "Select a graph first"}
+                                onKeyPress={e => e.key === 'Enter' && handleCreateNode()}
+                                disabled={!selectedGraph}
+                            />
                         </div>
-                    )}
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleCreateNode}
+                            disabled={!selectedGraph}
+                        >
+                            Add Node
+                        </button>
+                    </div>
 
                     <h2>Create New Graph</h2>
                     <div className="form-group">
