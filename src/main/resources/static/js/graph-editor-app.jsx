@@ -266,6 +266,25 @@ function GraphEditor() {
                         </div>
                     </div>
 
+                    {selectedGraph && (
+                        <div className="node-list">
+                            <h2>Add Node</h2>
+                            <div className="form-group">
+                                <label>Node Name</label>
+                                <input
+                                    type="text"
+                                    value={newNodeName}
+                                    onChange={e => setNewNodeName(e.target.value)}
+                                    placeholder="Enter node name"
+                                    onKeyPress={e => e.key === 'Enter' && handleCreateNode()}
+                                />
+                            </div>
+                            <button className="btn btn-primary" onClick={handleCreateNode}>
+                                Add Node
+                            </button>
+                        </div>
+                    )}
+
                     <h2>Create New Graph</h2>
                     <div className="form-group">
                         <label>Graph Name</label>
@@ -306,23 +325,6 @@ function GraphEditor() {
 
                     {selectedGraph && (
                         <>
-                            <div className="node-list">
-                                <h2>Add Node</h2>
-                                <div className="form-group">
-                                    <label>Node Name</label>
-                                    <input
-                                        type="text"
-                                        value={newNodeName}
-                                        onChange={e => setNewNodeName(e.target.value)}
-                                        placeholder="Enter node name"
-                                        onKeyPress={e => e.key === 'Enter' && handleCreateNode()}
-                                    />
-                                </div>
-                                <button className="btn btn-primary" onClick={handleCreateNode}>
-                                    Add Node
-                                </button>
-                            </div>
-
                             {nodes.length >= 2 && (
                                 <div className="edge-form">
                                     <h2>Add Edge</h2>
