@@ -118,6 +118,33 @@ public class ImmutableGraph<N, E> {
     }
 
     /**
+     * Remove an edge between two nodes, returns new graph
+     */
+    public ImmutableGraph<N, E> removeEdge(UUID fromNode, UUID toNode) {
+        if (!nodes.containsKey(fromNode) || !nodes.containsKey(toNode)) {
+            return this;
+        }
+
+        Map<UUID, Context<N, E>> newNodes = new HashMap<>(nodes);
+
+        // Update source node's successors
+        Context<N, E> fromContext = nodes.get(fromNode);
+        Map<UUID, E> newSuccessors = new HashMap<>(fromContext.successors);
+        newSuccessors.remove(toNode);
+        newNodes.put(fromNode, new Context<>(fromNode, fromContext.label,
+                                             fromContext.predecessors, newSuccessors));
+
+        // Update target node's predecessors
+        Context<N, E> toContext = nodes.get(toNode);
+        Map<UUID, E> newPredecessors = new HashMap<>(toContext.predecessors);
+        newPredecessors.remove(fromNode);
+        newNodes.put(toNode, new Context<>(toNode, toContext.label,
+                                           newPredecessors, toContext.successors));
+
+        return new ImmutableGraph<>(newNodes);
+    }
+
+    /**
      * Match operation - decompose graph by extracting a node
      */
     public Decomposition<N, E> match(UUID nodeId) {

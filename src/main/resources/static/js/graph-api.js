@@ -108,6 +108,18 @@ const graphApi = {
         await fetch(`${API_BASE}/graphs/${graphId}/nodes/${nodeId}`, {
             method: 'DELETE'
         });
+    },
+
+    /**
+     * Delete an edge between two nodes
+     * @param {string} graphId - Graph ID
+     * @param {string} fromId - Source node ID
+     * @param {string} toId - Target node ID
+     */
+    async deleteEdge(graphId, fromId, toId) {
+        await fetch(`${API_BASE}/graphs/${graphId}/nodes/${fromId}/${toId}`, {
+            method: 'DELETE'
+        });
     }
 };
 

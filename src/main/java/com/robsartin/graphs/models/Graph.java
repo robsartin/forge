@@ -100,6 +100,31 @@ public class Graph {
         this.edges.add(edge);
     }
 
+    public boolean removeNode(UUID nodeId) {
+        GraphNode nodeToRemove = findNodeById(nodeId);
+        if (nodeToRemove == null) {
+            return false;
+        }
+        // Remove all edges incident on this node
+        edges.removeIf(edge ->
+            edge.getFromNodeId().equals(nodeId) || edge.getToNodeId().equals(nodeId));
+        // Remove node from list
+        nodes.remove(nodeToRemove);
+        // Update immutable graph using match (which removes node and its edges)
+        ImmutableGraph.Decomposition<String, String> decomposition = immutableGraph.match(nodeId);
+        this.immutableGraph = decomposition.getGraph();
+        return true;
+    }
+
+    public boolean removeEdge(UUID fromNodeId, UUID toNodeId) {
+        boolean removed = edges.removeIf(edge ->
+            edge.getFromNodeId().equals(fromNodeId) && edge.getToNodeId().equals(toNodeId));
+        if (removed) {
+            this.immutableGraph = this.immutableGraph.removeEdge(fromNodeId, toNodeId);
+        }
+        return removed;
+    }
+
     public List<GraphEdge> getEdges() {
         return edges;
     }

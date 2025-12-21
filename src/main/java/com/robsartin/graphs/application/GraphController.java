@@ -311,6 +311,37 @@ public class GraphController {
     }
 
     /**
+     * DELETE /graphs/{id}/nodes/{nodeId} - Deletes a node and all incident edges
+     *
+     * @param id the graph ID
+     * @param nodeId the node ID to delete
+     * @return 204 No Content if deleted, 404 if not found
+     */
+    @DeleteMapping("/{id}/nodes/{nodeId}")
+    @Operation(summary = "Delete a node", description = "Deletes a node and all edges connected to it")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Node deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Graph or node not found")
+    })
+    @Timed(value = "node.delete", description = "Time taken to delete a node")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<Void> deleteNode(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "Node ID to delete", required = true) @PathVariable UUID nodeId) {
+        return graphRepository.findById(id)
+                .map(graph -> {
+                    if (graph.removeNode(nodeId)) {
+                        graphRepository.save(graph);
+                        return ResponseEntity.noContent().<Void>build();
+                    }
+                    return ResponseEntity.notFound().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
      * POST /graphs/{id}/nodes/{fromId}/{toId} - Adds an edge between two nodes
      *
      * @param id the graph ID
@@ -352,6 +383,39 @@ public class GraphController {
                     graph.addEdge(fromNode.getId(), toNode.getId());
                     graphRepository.save(graph);
                     return ResponseEntity.ok().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * DELETE /graphs/{id}/nodes/{fromId}/{toId} - Deletes an edge between two nodes
+     *
+     * @param id the graph ID
+     * @param fromId the source node ID
+     * @param toId the target node ID
+     * @return 204 No Content if deleted, 404 if not found
+     */
+    @DeleteMapping("/{id}/nodes/{fromId}/{toId}")
+    @Operation(summary = "Delete edge between nodes", description = "Removes a directed edge from one node to another")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Edge deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Graph or edge not found")
+    })
+    @Timed(value = "edge.delete", description = "Time taken to delete an edge")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<Void> deleteEdge(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "Source node ID", required = true) @PathVariable UUID fromId,
+            @Parameter(description = "Target node ID", required = true) @PathVariable UUID toId) {
+        return graphRepository.findById(id)
+                .map(graph -> {
+                    if (graph.removeEdge(fromId, toId)) {
+                        graphRepository.save(graph);
+                        return ResponseEntity.noContent().<Void>build();
+                    }
+                    return ResponseEntity.notFound().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
