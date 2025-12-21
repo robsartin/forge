@@ -2,7 +2,7 @@
  * D3 Graph Visualization Component
  * Renders an interactive force-directed graph using D3.js
  */
-function GraphVisualization({ nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode }) {
+function GraphVisualization({ nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode, onDeleteEdge }) {
     const { useRef, useEffect } = React;
 
     const svgRef = useRef(null);
@@ -116,8 +116,16 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, interacti
             .data(edges)
             .enter()
             .append('line')
-            .attr('class', 'link')
-            .attr('marker-end', 'url(#arrowhead)');
+            .attr('class', interactionMode === 'deleteEdge' ? 'link delete-edge-mode' : 'link')
+            .attr('marker-end', 'url(#arrowhead)')
+            .on('click', (event, d) => {
+                if (interactionMode === 'deleteEdge') {
+                    event.stopPropagation();
+                    const sourceId = d.source?.id || d.source;
+                    const targetId = d.target?.id || d.target;
+                    onDeleteEdge(sourceId, targetId);
+                }
+            });
 
         // Helper function to find node at position
         const findNodeAtPosition = (x, y, excludeId) => {
@@ -173,8 +181,42 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, interacti
                             simulation.alpha(0.1).restart();
                         }
                     });
+            } else if (interactionMode === 'move') {
+                // Move mode: drag to reposition individual nodes
+                return d3.drag()
+                    .on('start', function(event, d) {
+                        event.sourceEvent.stopPropagation();
+                        simulation.stop();
+                        d.fx = d.x;
+                        d.fy = d.y;
+                        d3.select(this).classed('dragging', true);
+                    })
+                    .on('drag', function(event, d) {
+                        d.fx = event.x;
+                        d.fy = event.y;
+                        d.x = event.x;
+                        d.y = event.y;
+                        // Update node position immediately using 'this'
+                        d3.select(this).attr('transform', `translate(${event.x},${event.y})`);
+                        // Update connected edges
+                        link.each(function(l) {
+                            if (l.source.id === d.id) {
+                                d3.select(this).attr('x1', d.x).attr('y1', d.y);
+                            }
+                            if (l.target.id === d.id) {
+                                d3.select(this).attr('x2', d.x).attr('y2', d.y);
+                            }
+                        });
+                        // Save position
+                        nodePositionsRef.current.set(d.id, { x: d.x, y: d.y });
+                    })
+                    .on('end', function(event, d) {
+                        d.fx = null;
+                        d.fy = null;
+                        d3.select(this).classed('dragging', false);
+                    });
             } else {
-                // Other modes: no node dragging (or disabled)
+                // Other modes: no node dragging
                 return d3.drag()
                     .on('start', () => {})
                     .on('drag', () => {})
@@ -193,6 +235,7 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, interacti
                 if (selectedNode === d.id) classes += ' selected';
                 if (editingNode === d.id) classes += ' editing';
                 if (interactionMode === 'delete') classes += ' delete-mode';
+                if (interactionMode === 'move') classes += ' move-mode';
                 return classes;
             })
             .call(createDragBehavior())
@@ -234,7 +277,7 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, interacti
         });
 
         return () => simulation.stop();
-    }, [nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode]);
+    }, [nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode, onDeleteEdge]);
 
     return <svg ref={svgRef} className="graph-svg" />;
 }
