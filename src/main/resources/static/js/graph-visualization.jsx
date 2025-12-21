@@ -176,35 +176,36 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, interacti
             } else if (interactionMode === 'move') {
                 // Move mode: drag to reposition individual nodes
                 return d3.drag()
-                    .on('start', (event, d) => {
+                    .on('start', function(event, d) {
                         event.sourceEvent.stopPropagation();
                         simulation.stop();
                         d.fx = d.x;
                         d.fy = d.y;
+                        d3.select(this).classed('dragging', true);
                     })
-                    .on('drag', (event, d) => {
+                    .on('drag', function(event, d) {
                         d.fx = event.x;
                         d.fy = event.y;
                         d.x = event.x;
                         d.y = event.y;
-                        // Update node position immediately
-                        d3.select(event.sourceEvent.target.closest('.node'))
-                            .attr('transform', `translate(${event.x},${event.y})`);
+                        // Update node position immediately using 'this'
+                        d3.select(this).attr('transform', `translate(${event.x},${event.y})`);
                         // Update connected edges
                         link.each(function(l) {
                             if (l.source.id === d.id) {
-                                d3.select(this).attr('x1', event.x).attr('y1', event.y);
+                                d3.select(this).attr('x1', d.x).attr('y1', d.y);
                             }
                             if (l.target.id === d.id) {
-                                d3.select(this).attr('x2', event.x).attr('y2', event.y);
+                                d3.select(this).attr('x2', d.x).attr('y2', d.y);
                             }
                         });
                         // Save position
-                        nodePositionsRef.current.set(d.id, { x: event.x, y: event.y });
+                        nodePositionsRef.current.set(d.id, { x: d.x, y: d.y });
                     })
-                    .on('end', (event, d) => {
+                    .on('end', function(event, d) {
                         d.fx = null;
                         d.fy = null;
+                        d3.select(this).classed('dragging', false);
                     });
             } else {
                 // Other modes: no node dragging
