@@ -62,3 +62,18 @@
     fill: #9b59b6;
     stroke: #7d3c98;
 }
+
+/* Delete mode node styling */
+.node.delete-mode circle {
+    stroke: #e74c3c;
+    stroke-width: 3px;
+}
+
+.node.delete-mode:hover circle {
+    fill: #e74c3c;
+    stroke: #c0392b;
+}
+
+.node.delete-mode {
+    cursor: crosshair;
+}

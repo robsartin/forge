@@ -124,6 +124,43 @@ body {
     background: #c0392b;
 }
 
+/* Mode toolbar */
+.mode-toolbar {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.mode-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.btn-mode {
+    background: #ecf0f1;
+    color: #2c3e50;
+    padding: 10px 12px;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.btn-mode:hover {
+    background: #d5dbdb;
+}
+
+.btn-mode.active {
+    background: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
+
+.btn-mode.active:nth-child(4) {
+    background: #e74c3c;
+    border-color: #c0392b;
+}
+
 /* Graph container */
 .graph-container {
     flex: 1;

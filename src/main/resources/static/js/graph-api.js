@@ -97,6 +97,17 @@ const graphApi = {
             body: JSON.stringify({ name })
         });
         return res.json();
+    },
+
+    /**
+     * Delete a node and its edges
+     * @param {string} graphId - Graph ID
+     * @param {string} nodeId - Node ID
+     */
+    async deleteNode(graphId, nodeId) {
+        await fetch(`${API_BASE}/graphs/${graphId}/nodes/${nodeId}`, {
+            method: 'DELETE'
+        });
     }
 };
 

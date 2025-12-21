@@ -20,6 +20,7 @@ function GraphEditor() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [status, setStatus] = useState('Ready');
+    const [interactionMode, setInteractionMode] = useState('rename');
     const graphContainerRef = useRef(null);
 
     // Load graphs on mount
@@ -193,6 +194,24 @@ function GraphEditor() {
         }
     }, [selectedGraph, edges, nodes]);
 
+    const handleDeleteNode = useCallback(async (nodeId) => {
+        if (!selectedGraph) return;
+        const nodeToDelete = nodes.find(n => n.id === nodeId);
+        if (!nodeToDelete) return;
+        try {
+            await api.deleteNode(selectedGraph.id, nodeId);
+            setNodes(prev => prev.filter(n => n.id !== nodeId));
+            setEdges(prev => prev.filter(e => {
+                const sourceId = e.source?.id || e.source;
+                const targetId = e.target?.id || e.target;
+                return sourceId !== nodeId && targetId !== nodeId;
+            }));
+            setStatus(`Deleted node: ${nodeToDelete.name}`);
+        } catch (err) {
+            setError('Failed to delete node');
+        }
+    }, [selectedGraph, nodes]);
+
     return (
         <div className="graph-editor">
             <header className="header">
@@ -208,10 +227,43 @@ function GraphEditor() {
                         <ul>
                             <li>Create or select a graph</li>
                             <li><strong>Click canvas</strong> to create a node</li>
-                            <li><strong>Click a node</strong> to rename it</li>
-                            <li><strong>Drag from node to node</strong> to create edge</li>
-                            <li>Scroll to zoom, drag to reposition</li>
+                            <li>Select a mode below to interact with nodes</li>
+                            <li>Scroll to zoom, right-drag to pan</li>
                         </ul>
+                    </div>
+
+                    <div className="mode-toolbar">
+                        <h2>Interaction Mode</h2>
+                        <div className="mode-buttons">
+                            <button
+                                className={`btn btn-mode ${interactionMode === 'rename' ? 'active' : ''}`}
+                                onClick={() => setInteractionMode('rename')}
+                                title="Click a node to rename it"
+                            >
+                                Rename
+                            </button>
+                            <button
+                                className={`btn btn-mode ${interactionMode === 'link' ? 'active' : ''}`}
+                                onClick={() => setInteractionMode('link')}
+                                title="Drag from one node to another to create an edge"
+                            >
+                                Link Edge
+                            </button>
+                            <button
+                                className={`btn btn-mode ${interactionMode === 'move' ? 'active' : ''}`}
+                                onClick={() => setInteractionMode('move')}
+                                title="Drag the graph to reposition"
+                            >
+                                Move
+                            </button>
+                            <button
+                                className={`btn btn-mode ${interactionMode === 'delete' ? 'active' : ''}`}
+                                onClick={() => setInteractionMode('delete')}
+                                title="Click a node to delete it and its edges"
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
 
                     <h2>Create New Graph</h2>
@@ -321,10 +373,12 @@ function GraphEditor() {
                             edges={edges}
                             selectedNode={selectedNode}
                             editingNode={editingNode}
+                            interactionMode={interactionMode}
                             onNodeClick={handleNodeClick}
                             onCanvasClick={handleCanvasClick}
                             onEdgeCreate={handleEdgeCreate}
                             onEditStart={handleEditStart}
+                            onDeleteNode={handleDeleteNode}
                         />
                     ) : (
                         <div className="loading">

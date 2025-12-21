@@ -2,7 +2,7 @@
  * D3 Graph Visualization Component
  * Renders an interactive force-directed graph using D3.js
  */
-function GraphVisualization({ nodes, edges, selectedNode, editingNode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart }) {
+function GraphVisualization({ nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode }) {
     const { useRef, useEffect } = React;
 
     const svgRef = useRef(null);
@@ -11,6 +11,7 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, onNodeCli
     const dragSourceRef = useRef(null);
     const transformRef = useRef(d3.zoomIdentity);
     const nodePositionsRef = useRef(new Map());
+    const mouseDownRef = useRef(false);
 
     useEffect(() => {
         if (!svgRef.current) return;
@@ -46,7 +47,7 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, onNodeCli
 
         const g = svg.append('g');
 
-        // Add drag line (initially hidden)
+        // Add drag line (initially hidden) - used in link mode
         const dragLine = g.append('line')
             .attr('class', 'drag-line')
             .style('display', 'none');
@@ -56,6 +57,11 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, onNodeCli
         const zoom = d3.zoom()
             .scaleExtent([0.1, 4])
             .filter((event) => {
+                // In move mode, allow left-click drag for panning
+                if (interactionMode === 'move') {
+                    return event.type === 'wheel' || event.button === 0 || event.button === 2;
+                }
+                // Otherwise, only wheel and right-click
                 return event.type === 'wheel' || event.button === 2;
             })
             .on('zoom', (event) => {
@@ -69,6 +75,21 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, onNodeCli
             if (event.target === svgRef.current) {
                 const [x, y] = d3.pointer(event, g.node());
                 onCanvasClick(x, y);
+            }
+        });
+
+        // Track mouse down state for freezing layout
+        svg.on('mousedown', () => {
+            mouseDownRef.current = true;
+            if (simulationRef.current) {
+                simulationRef.current.stop();
+            }
+        });
+
+        svg.on('mouseup', () => {
+            mouseDownRef.current = false;
+            if (simulationRef.current) {
+                simulationRef.current.alpha(0.1).restart();
             }
         });
 
@@ -112,53 +133,79 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, onNodeCli
             return null;
         };
 
+        // Create drag behavior based on interaction mode
+        const createDragBehavior = () => {
+            if (interactionMode === 'link') {
+                // Link mode: drag from node to node to create edge
+                return d3.drag()
+                    .on('start', (event, d) => {
+                        simulation.stop();
+                        d.fx = d.x;
+                        d.fy = d.y;
+                        dragSourceRef.current = d;
+                        dragLine
+                            .style('display', null)
+                            .attr('x1', d.x)
+                            .attr('y1', d.y)
+                            .attr('x2', d.x)
+                            .attr('y2', d.y);
+                        d3.select(event.sourceEvent.target.closest('.node')).classed('drag-source', true);
+                    })
+                    .on('drag', (event, d) => {
+                        dragLine
+                            .attr('x2', event.x)
+                            .attr('y2', event.y);
+                        const targetNode = findNodeAtPosition(event.x, event.y, d.id);
+                        node.classed('drag-target', n => targetNode && n.id === targetNode.id);
+                    })
+                    .on('end', (event, d) => {
+                        d.fx = null;
+                        d.fy = null;
+                        dragLine.style('display', 'none');
+                        node.classed('drag-source', false);
+                        node.classed('drag-target', false);
+                        const targetNode = findNodeAtPosition(event.x, event.y, d.id);
+                        if (targetNode && dragSourceRef.current) {
+                            onEdgeCreate(dragSourceRef.current.id, targetNode.id);
+                        }
+                        dragSourceRef.current = null;
+                        if (!mouseDownRef.current) {
+                            simulation.alpha(0.1).restart();
+                        }
+                    });
+            } else {
+                // Other modes: no node dragging (or disabled)
+                return d3.drag()
+                    .on('start', () => {})
+                    .on('drag', () => {})
+                    .on('end', () => {});
+            }
+        };
+
         // Draw nodes
         const node = g.append('g')
             .selectAll('.node')
             .data(nodes)
             .enter()
             .append('g')
-            .attr('class', d => `node ${selectedNode === d.id ? 'selected' : ''} ${editingNode === d.id ? 'editing' : ''}`)
-            .call(d3.drag()
-                .on('start', (event, d) => {
-                    if (!event.active) simulation.alphaTarget(0.3).restart();
-                    d.fx = d.x;
-                    d.fy = d.y;
-                    dragSourceRef.current = d;
-                    dragLine
-                        .style('display', null)
-                        .attr('x1', d.x)
-                        .attr('y1', d.y)
-                        .attr('x2', d.x)
-                        .attr('y2', d.y);
-                    d3.select(event.sourceEvent.target.closest('.node')).classed('drag-source', true);
-                })
-                .on('drag', (event, d) => {
-                    dragLine
-                        .attr('x2', event.x)
-                        .attr('y2', event.y);
-                    const targetNode = findNodeAtPosition(event.x, event.y, d.id);
-                    node.classed('drag-target', n => targetNode && n.id === targetNode.id);
-                })
-                .on('end', (event, d) => {
-                    if (!event.active) simulation.alphaTarget(0);
-                    d.fx = null;
-                    d.fy = null;
-                    dragLine.style('display', 'none');
-                    node.classed('drag-source', false);
-                    node.classed('drag-target', false);
-                    const targetNode = findNodeAtPosition(event.x, event.y, d.id);
-                    if (targetNode && dragSourceRef.current) {
-                        onEdgeCreate(dragSourceRef.current.id, targetNode.id);
-                    }
-                    dragSourceRef.current = null;
-                })
-            )
+            .attr('class', d => {
+                let classes = 'node';
+                if (selectedNode === d.id) classes += ' selected';
+                if (editingNode === d.id) classes += ' editing';
+                if (interactionMode === 'delete') classes += ' delete-mode';
+                return classes;
+            })
+            .call(createDragBehavior())
             .on('click', (event, d) => {
                 event.stopPropagation();
                 if (editingNode === d.id) return;
                 if (event.defaultPrevented) return;
-                onEditStart(d);
+
+                if (interactionMode === 'rename') {
+                    onEditStart(d);
+                } else if (interactionMode === 'delete') {
+                    onDeleteNode(d.id);
+                }
             });
 
         node.append('circle')
@@ -169,6 +216,9 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, onNodeCli
 
         // Update positions on each tick
         simulation.on('tick', () => {
+            // Don't update positions if mouse is down (frozen)
+            if (mouseDownRef.current) return;
+
             link
                 .attr('x1', d => d.source.x)
                 .attr('y1', d => d.source.y)
@@ -184,7 +234,7 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, onNodeCli
         });
 
         return () => simulation.stop();
-    }, [nodes, edges, selectedNode, editingNode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart]);
+    }, [nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode]);
 
     return <svg ref={svgRef} className="graph-svg" />;
 }
