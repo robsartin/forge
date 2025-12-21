@@ -144,7 +144,7 @@ body {
 
 .mode-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
     margin-top: 12px;
 }
@@ -167,7 +167,8 @@ body {
     border-color: #2980b9;
 }
 
-.btn-mode.active:nth-child(4) {
+.btn-mode.active:nth-child(4),
+.btn-mode.active:nth-child(5) {
     background: #e74c3c;
     border-color: #c0392b;
 }

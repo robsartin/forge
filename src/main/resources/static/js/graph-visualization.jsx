@@ -2,7 +2,7 @@
  * D3 Graph Visualization Component
  * Renders an interactive force-directed graph using D3.js
  */
-function GraphVisualization({ nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode }) {
+function GraphVisualization({ nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode, onDeleteEdge }) {
     const { useRef, useEffect } = React;
 
     const svgRef = useRef(null);
@@ -116,8 +116,16 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, interacti
             .data(edges)
             .enter()
             .append('line')
-            .attr('class', 'link')
-            .attr('marker-end', 'url(#arrowhead)');
+            .attr('class', interactionMode === 'deleteEdge' ? 'link delete-edge-mode' : 'link')
+            .attr('marker-end', 'url(#arrowhead)')
+            .on('click', (event, d) => {
+                if (interactionMode === 'deleteEdge') {
+                    event.stopPropagation();
+                    const sourceId = d.source?.id || d.source;
+                    const targetId = d.target?.id || d.target;
+                    onDeleteEdge(sourceId, targetId);
+                }
+            });
 
         // Helper function to find node at position
         const findNodeAtPosition = (x, y, excludeId) => {
@@ -269,7 +277,7 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, interacti
         });
 
         return () => simulation.stop();
-    }, [nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode]);
+    }, [nodes, edges, selectedNode, editingNode, interactionMode, onNodeClick, onCanvasClick, onEdgeCreate, onEditStart, onDeleteNode, onDeleteEdge]);
 
     return <svg ref={svgRef} className="graph-svg" />;
 }

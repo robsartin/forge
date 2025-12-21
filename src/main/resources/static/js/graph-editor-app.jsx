@@ -212,6 +212,23 @@ function GraphEditor() {
         }
     }, [selectedGraph, nodes]);
 
+    const handleDeleteEdge = useCallback(async (sourceId, targetId) => {
+        if (!selectedGraph) return;
+        try {
+            await api.deleteEdge(selectedGraph.id, sourceId, targetId);
+            setEdges(prev => prev.filter(e => {
+                const edgeSourceId = e.source?.id || e.source;
+                const edgeTargetId = e.target?.id || e.target;
+                return !(edgeSourceId === sourceId && edgeTargetId === targetId);
+            }));
+            const sourceNode = nodes.find(n => n.id === sourceId);
+            const targetNode = nodes.find(n => n.id === targetId);
+            setStatus(`Deleted edge: ${sourceNode?.name} -> ${targetNode?.name}`);
+        } catch (err) {
+            setError('Failed to delete edge');
+        }
+    }, [selectedGraph, nodes]);
+
     return (
         <div className="graph-editor">
             <header className="header">
@@ -261,7 +278,14 @@ function GraphEditor() {
                                 onClick={() => setInteractionMode('delete')}
                                 title="Click a node to delete it and its edges"
                             >
-                                Delete
+                                Delete Node
+                            </button>
+                            <button
+                                className={`btn btn-mode ${interactionMode === 'deleteEdge' ? 'active' : ''}`}
+                                onClick={() => setInteractionMode('deleteEdge')}
+                                title="Click an edge to delete it"
+                            >
+                                Delete Edge
                             </button>
                         </div>
                     </div>
@@ -384,6 +408,7 @@ function GraphEditor() {
                             onEdgeCreate={handleEdgeCreate}
                             onEditStart={handleEditStart}
                             onDeleteNode={handleDeleteNode}
+                            onDeleteEdge={handleDeleteEdge}
                         />
                     ) : (
                         <div className="loading">

@@ -86,3 +86,14 @@
 .node.move-mode:active {
     cursor: grabbing;
 }
+
+/* Delete edge mode styling */
+.link.delete-edge-mode {
+    stroke-width: 6px;
+    cursor: crosshair;
+    pointer-events: stroke;
+}
+
+.link.delete-edge-mode:hover {
+    stroke: #e74c3c;
+}
