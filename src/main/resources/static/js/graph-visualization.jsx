@@ -173,8 +173,41 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, interacti
                             simulation.alpha(0.1).restart();
                         }
                     });
+            } else if (interactionMode === 'move') {
+                // Move mode: drag to reposition individual nodes
+                return d3.drag()
+                    .on('start', (event, d) => {
+                        event.sourceEvent.stopPropagation();
+                        simulation.stop();
+                        d.fx = d.x;
+                        d.fy = d.y;
+                    })
+                    .on('drag', (event, d) => {
+                        d.fx = event.x;
+                        d.fy = event.y;
+                        d.x = event.x;
+                        d.y = event.y;
+                        // Update node position immediately
+                        d3.select(event.sourceEvent.target.closest('.node'))
+                            .attr('transform', `translate(${event.x},${event.y})`);
+                        // Update connected edges
+                        link.each(function(l) {
+                            if (l.source.id === d.id) {
+                                d3.select(this).attr('x1', event.x).attr('y1', event.y);
+                            }
+                            if (l.target.id === d.id) {
+                                d3.select(this).attr('x2', event.x).attr('y2', event.y);
+                            }
+                        });
+                        // Save position
+                        nodePositionsRef.current.set(d.id, { x: event.x, y: event.y });
+                    })
+                    .on('end', (event, d) => {
+                        d.fx = null;
+                        d.fy = null;
+                    });
             } else {
-                // Other modes: no node dragging (or disabled)
+                // Other modes: no node dragging
                 return d3.drag()
                     .on('start', () => {})
                     .on('drag', () => {})
@@ -193,6 +226,7 @@ function GraphVisualization({ nodes, edges, selectedNode, editingNode, interacti
                 if (selectedNode === d.id) classes += ' selected';
                 if (editingNode === d.id) classes += ' editing';
                 if (interactionMode === 'delete') classes += ' delete-mode';
+                if (interactionMode === 'move') classes += ' move-mode';
                 return classes;
             })
             .call(createDragBehavior())
