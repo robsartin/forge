@@ -20,6 +20,7 @@ import java.util.Arrays;
 public class ControllerLoggingAspect {
 
     private static final Logger log = LoggerFactory.getLogger(ControllerLoggingAspect.class);
+    private static final double NANOS_PER_MILLI = 1_000_000.0;
     private static final java.util.Set<String> SENSITIVE_PARAM_NAMES = java.util.Set.of(
             "password", "secret", "token", "credential", "key", "authorization"
     );
@@ -64,21 +65,22 @@ public class ControllerLoggingAspect {
         String safeArgs = sanitizeArguments(args, joinPoint);
         log.info("ENTRY: {}.{}() with arguments: {}", className, methodName, safeArgs);
 
-        long startTime = System.currentTimeMillis();
+        long startNanos = System.nanoTime();
         try {
             Object result = joinPoint.proceed();
-            long elapsedTime = System.currentTimeMillis() - startTime;
+            double elapsedMs = (System.nanoTime() - startNanos) / NANOS_PER_MILLI;
 
             String safeResult = sanitizeResult(result);
             log.info("EXIT: {}.{}() returned: {} | elapsed time: {} ms",
-                    className, methodName, safeResult, elapsedTime);
+                    className, methodName, safeResult, String.format("%.3f", elapsedMs));
 
             return result;
         } catch (Throwable ex) {
-            long elapsedTime = System.currentTimeMillis() - startTime;
+            double elapsedMs = (System.nanoTime() - startNanos) / NANOS_PER_MILLI;
 
             log.error("EXCEPTION: {}.{}() threw: {} | elapsed time: {} ms",
-                    className, methodName, ex.getClass().getSimpleName() + ": " + ex.getMessage(), elapsedTime);
+                    className, methodName, ex.getClass().getSimpleName() + ": " + ex.getMessage(),
+                    String.format("%.3f", elapsedMs));
 
             throw ex;
         }

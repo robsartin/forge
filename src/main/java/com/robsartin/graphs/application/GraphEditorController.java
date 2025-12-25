@@ -30,17 +30,11 @@ public class GraphEditorController {
             @ApiResponse(responseCode = "302", description = "Redirect to graph editor page")
     })
     public String getGraphEditor(@AuthenticationPrincipal OAuth2User principal) {
-        long startTime = System.currentTimeMillis();
-        try {
-            if (principal != null) {
-                String name = principal.getAttribute("name");
-                logger.info("User '{}' accessing graph editor", name);
-            }
-            return "redirect:/graph-editor.html";
-        } finally {
-            long duration = System.currentTimeMillis() - startTime;
-            logger.debug("Graph editor redirect completed in {} ms", duration);
+        if (principal != null) {
+            String name = principal.getAttribute("name");
+            logger.info("User '{}' accessing graph editor", name);
         }
+        return "redirect:/graph-editor.html";
     }
 
     @GetMapping("/api/user")
@@ -51,31 +45,22 @@ public class GraphEditorController {
             @ApiResponse(responseCode = "401", description = "User not authenticated")
     })
     public Map<String, Object> getCurrentUser(@AuthenticationPrincipal OAuth2User principal) {
-        long startTime = System.currentTimeMillis();
-        try {
-            if (principal == null) {
-                logger.warn("Attempt to access user info without authentication");
-                return Map.of("authenticated", false);
-            }
-
-            String name = principal.getAttribute("name");
-            String email = principal.getAttribute("email");
-            String picture = principal.getAttribute("picture");
-
-            logger.info("User info requested for: {}", name);
-
-            return Map.of(
-                "authenticated", true,
-                "name", name != null ? name : "",
-                "email", email != null ? email : "",
-                "picture", picture != null ? picture : ""
-            );
-        } catch (Exception e) {
-            logger.error("Failed to retrieve user info: {}", e.getMessage());
-            throw e;
-        } finally {
-            long duration = System.currentTimeMillis() - startTime;
-            logger.debug("User info request completed in {} ms", duration);
+        if (principal == null) {
+            logger.warn("Attempt to access user info without authentication");
+            return Map.of("authenticated", false);
         }
+
+        String name = principal.getAttribute("name");
+        String email = principal.getAttribute("email");
+        String picture = principal.getAttribute("picture");
+
+        logger.info("User info requested for: {}", name);
+
+        return Map.of(
+            "authenticated", true,
+            "name", name != null ? name : "",
+            "email", email != null ? email : "",
+            "picture", picture != null ? picture : ""
+        );
     }
 }
