@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.containsString;
@@ -21,13 +22,21 @@ class GraphEditorControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    void shouldRedirectToGraphEditorPage() throws Exception {
+    void shouldRedirectUnauthenticatedUserToLogin() throws Exception {
+        mockMvc.perform(get("/edit_graph"))
+                .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
+    @WithMockUser
+    void shouldRedirectToGraphEditorPageWhenAuthenticated() throws Exception {
         mockMvc.perform(get("/edit_graph"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/graph-editor.html"));
     }
 
     @Test
+    @WithMockUser
     void shouldReturnGraphEditorStaticPage() throws Exception {
         mockMvc.perform(get("/graph-editor.html"))
                 .andExpect(status().isOk())
@@ -37,6 +46,7 @@ class GraphEditorControllerTest {
     }
 
     @Test
+    @WithMockUser
     void shouldIncludeReactAndD3Dependencies() throws Exception {
         mockMvc.perform(get("/graph-editor.html"))
                 .andExpect(status().isOk())
@@ -45,9 +55,37 @@ class GraphEditorControllerTest {
     }
 
     @Test
+    @WithMockUser
     void shouldIncludeGraphVisualizationContainer() throws Exception {
         mockMvc.perform(get("/graph-editor.html"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"root\"")));
+    }
+
+    @Test
+    void shouldAllowAccessToLoginPage() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldAllowAccessToIndexHtml() throws Exception {
+        mockMvc.perform(get("/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Sign in with Google")));
+    }
+
+    @Test
+    @WithMockUser
+    void shouldReturnUserInfoWhenAuthenticated() throws Exception {
+        mockMvc.perform(get("/api/user"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated").value(false));
+    }
+
+    @Test
+    void shouldRequireAuthenticationForUserEndpoint() throws Exception {
+        mockMvc.perform(get("/api/user"))
+                .andExpect(status().is3xxRedirection());
     }
 }

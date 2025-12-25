@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -17,34 +18,38 @@ class ActuatorEndpointsTest {
     private MockMvc mockMvc;
 
     @Test
-    void healthEndpointShouldBeAccessible() throws Exception {
+    void healthEndpointShouldBeAccessibleWithoutAuth() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").exists());
     }
 
     @Test
-    void metricsEndpointShouldBeAccessible() throws Exception {
+    @WithMockUser
+    void metricsEndpointShouldBeAccessibleWithAuth() throws Exception {
         mockMvc.perform(get("/actuator/metrics"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.names").isArray());
     }
 
     @Test
-    void threaddumpEndpointShouldBeAccessible() throws Exception {
+    @WithMockUser
+    void threaddumpEndpointShouldBeAccessibleWithAuth() throws Exception {
         mockMvc.perform(get("/actuator/threaddump"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.threads").isArray());
     }
 
     @Test
-    void envEndpointShouldBeAccessible() throws Exception {
+    @WithMockUser
+    void envEndpointShouldBeAccessibleWithAuth() throws Exception {
         mockMvc.perform(get("/actuator/env"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.propertySources").isArray());
     }
 
     @Test
+    @WithMockUser
     void lazyInitializationShouldBeEnabled() throws Exception {
         mockMvc.perform(get("/actuator/env/spring.main.lazy-initialization"))
                 .andExpect(status().isOk())

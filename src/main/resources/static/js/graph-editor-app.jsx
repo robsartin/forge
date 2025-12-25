@@ -21,12 +21,32 @@ function GraphEditor() {
     const [error, setError] = useState(null);
     const [status, setStatus] = useState('Ready');
     const [interactionMode, setInteractionMode] = useState('rename');
+    const [user, setUser] = useState(null);
     const graphContainerRef = useRef(null);
 
-    // Load graphs on mount
+    // Load user info and graphs on mount
     useEffect(() => {
+        loadUserInfo();
         loadGraphs();
     }, []);
+
+    const loadUserInfo = async () => {
+        try {
+            const response = await fetch('/api/user');
+            if (response.ok) {
+                const userData = await response.json();
+                if (userData.authenticated) {
+                    setUser(userData);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to load user info:', err);
+        }
+    };
+
+    const handleLogout = () => {
+        window.location.href = '/logout';
+    };
 
     const loadGraphs = async () => {
         try {
@@ -233,7 +253,39 @@ function GraphEditor() {
         <div className="graph-editor">
             <header className="header">
                 <h1>Graph Editor</h1>
-                <span>React + D3 Visualization</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    {user && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {user.picture && (
+                                <img
+                                    src={user.picture}
+                                    alt={user.name}
+                                    style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '50%',
+                                        border: '2px solid rgba(255,255,255,0.3)'
+                                    }}
+                                />
+                            )}
+                            <span style={{ fontSize: '0.9rem' }}>{user.name}</span>
+                            <button
+                                onClick={handleLogout}
+                                style={{
+                                    padding: '6px 12px',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    border: '1px solid rgba(255,255,255,0.3)',
+                                    borderRadius: '4px',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem'
+                                }}
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    )}
+                </div>
             </header>
             <div className="main-content">
                 <aside className="sidebar">
