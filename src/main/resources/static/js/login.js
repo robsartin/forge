@@ -54,7 +54,7 @@
             var csrfInput = document.getElementById('csrf-token');
             if (csrfInput && data.token) {
                 csrfInput.value = data.token;
-                csrfInput.name = data.headerName || '_csrf';
+                csrfInput.name = data.parameterName || '_csrf';
             }
         })
         .catch(function(error) {
