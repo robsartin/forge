@@ -80,7 +80,8 @@ class GraphEditorControllerTest {
     void shouldReturnUserInfoWhenAuthenticated() throws Exception {
         mockMvc.perform(get("/api/user"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.authenticated").value(false));
+                .andExpect(jsonPath("$.authenticated").value(true))
+                .andExpect(jsonPath("$.name").value("user"));
     }
 
     @Test
