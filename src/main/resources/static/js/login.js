@@ -29,6 +29,7 @@
             'authentication_failed': 'Authentication failed. Please try again or contact support.',
             'access_denied': 'Access was denied. Please try again.',
             'invalid_request': 'Invalid authentication request. Please try again.',
+            'invalid_credentials': 'Invalid username or password. Please try again.',
             'server_error': 'A server error occurred. Please try again later.'
         };
 
@@ -36,7 +37,33 @@
     }
 
     /**
-     * Initializes the login page by checking for error parameters.
+     * Fetches the CSRF token from the server and sets it in the form.
+     */
+    function fetchCsrfToken() {
+        fetch('/api/csrf', {
+            method: 'GET',
+            credentials: 'same-origin'
+        })
+        .then(function(response) {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Failed to fetch CSRF token');
+        })
+        .then(function(data) {
+            var csrfInput = document.getElementById('csrf-token');
+            if (csrfInput && data.token) {
+                csrfInput.value = data.token;
+                csrfInput.name = data.headerName || '_csrf';
+            }
+        })
+        .catch(function(error) {
+            console.error('CSRF token fetch failed:', error);
+        });
+    }
+
+    /**
+     * Initializes the login page by checking for error parameters and fetching CSRF token.
      */
     function init() {
         var urlParams = new URLSearchParams(window.location.search);
@@ -49,6 +76,9 @@
             // Log the error to console (without sensitive data)
             console.error('Login error occurred:', error);
         }
+
+        // Fetch CSRF token for form login
+        fetchCsrfToken();
     }
 
     // Initialize when DOM is ready

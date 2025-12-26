@@ -127,6 +127,45 @@ h1 {
     margin-left: 16px;
 }
 
+.login-form {
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-login-btn {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.form-login-btn:hover {
+    background: #5a6fd6;
+    border-color: #5a6fd6;
+}
+
+.dev-hint {
+    margin-top: 12px;
+    color: #95a5a6;
+    font-size: 0.8rem;
+}
+
 .features {
     text-align: left;
     margin-top: 32px;

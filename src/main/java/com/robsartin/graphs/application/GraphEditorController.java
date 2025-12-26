@@ -6,8 +6,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -29,12 +30,25 @@ public class GraphEditorController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "302", description = "Redirect to graph editor page")
     })
-    public String getGraphEditor(@AuthenticationPrincipal OAuth2User principal) {
-        if (principal != null) {
-            String name = principal.getAttribute("name");
-            logger.info("User '{}' accessing graph editor", name);
+    public String getGraphEditor(Authentication authentication) {
+        if (authentication != null) {
+            logger.info("User '{}' accessing graph editor", authentication.getName());
         }
         return "redirect:/graph-editor.html";
+    }
+
+    @GetMapping("/api/csrf")
+    @ResponseBody
+    @Operation(summary = "CSRF Token", description = "Returns CSRF token for form submissions")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "CSRF token returned successfully")
+    })
+    public Map<String, String> getCsrfToken(CsrfToken token) {
+        return Map.of(
+            "token", token.getToken(),
+            "headerName", token.getHeaderName(),
+            "parameterName", token.getParameterName()
+        );
     }
 
     @GetMapping("/api/user")
@@ -44,23 +58,39 @@ public class GraphEditorController {
             @ApiResponse(responseCode = "200", description = "User info returned successfully"),
             @ApiResponse(responseCode = "401", description = "User not authenticated")
     })
-    public Map<String, Object> getCurrentUser(@AuthenticationPrincipal OAuth2User principal) {
-        if (principal == null) {
+    public Map<String, Object> getCurrentUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
             logger.warn("Attempt to access user info without authentication");
             return Map.of("authenticated", false);
         }
 
-        String name = principal.getAttribute("name");
-        String email = principal.getAttribute("email");
-        String picture = principal.getAttribute("picture");
+        Object principal = authentication.getPrincipal();
 
-        logger.info("User info requested for: {}", name);
+        // Handle OAuth2 user (Google login)
+        if (principal instanceof OAuth2User oauth2User) {
+            String name = oauth2User.getAttribute("name");
+            String email = oauth2User.getAttribute("email");
+            String picture = oauth2User.getAttribute("picture");
+
+            logger.info("User info requested for OAuth2 user: {}", name);
+
+            return Map.of(
+                "authenticated", true,
+                "name", name != null ? name : "",
+                "email", email != null ? email : "",
+                "picture", picture != null ? picture : ""
+            );
+        }
+
+        // Handle form login user
+        String username = authentication.getName();
+        logger.info("User info requested for form login user: {}", username);
 
         return Map.of(
             "authenticated", true,
-            "name", name != null ? name : "",
-            "email", email != null ? email : "",
-            "picture", picture != null ? picture : ""
+            "name", username,
+            "email", "",
+            "picture", ""
         );
     }
 }
