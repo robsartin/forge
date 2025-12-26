@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -97,7 +98,7 @@ class GraphControllerTest {
     // POST /graphs - create a new graph
     @Test
     void shouldCreateNewGraph() throws Exception {
-        mockMvc.perform(post("/graphs").with(authenticatedUser)
+        mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"New Graph\"}"))
                 .andExpect(status().isCreated())
@@ -107,7 +108,7 @@ class GraphControllerTest {
 
     @Test
     void shouldRejectPostWithoutName() throws Exception {
-        mockMvc.perform(post("/graphs").with(authenticatedUser)
+        mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest());
@@ -115,7 +116,7 @@ class GraphControllerTest {
 
     @Test
     void shouldRejectPostWithEmptyName() throws Exception {
-        mockMvc.perform(post("/graphs").with(authenticatedUser)
+        mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"\"}"))
                 .andExpect(status().isBadRequest());
@@ -123,7 +124,7 @@ class GraphControllerTest {
 
     @Test
     void shouldRejectPostWithBlankName() throws Exception {
-        mockMvc.perform(post("/graphs").with(authenticatedUser)
+        mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"   \"}"))
                 .andExpect(status().isBadRequest());
@@ -131,7 +132,7 @@ class GraphControllerTest {
 
     @Test
     void shouldRejectPostWithNullName() throws Exception {
-        mockMvc.perform(post("/graphs").with(authenticatedUser)
+        mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": null}"))
                 .andExpect(status().isBadRequest());
@@ -139,7 +140,7 @@ class GraphControllerTest {
 
     @Test
     void shouldPersistGraphWhenCreating() throws Exception {
-        mockMvc.perform(post("/graphs").with(authenticatedUser)
+        mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Test Graph\"}"))
                 .andExpect(status().isCreated());
@@ -154,7 +155,7 @@ class GraphControllerTest {
         Graph graph = new Graph("Test Graph");
         Graph savedGraph = graphRepository.save(graph);
 
-        mockMvc.perform(delete("/graphs/" + savedGraph.getId()).with(authenticatedUser))
+        mockMvc.perform(delete("/graphs/" + savedGraph.getId()).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isNoContent());
 
         assert graphRepository.findById(savedGraph.getId()).isEmpty();
@@ -163,7 +164,7 @@ class GraphControllerTest {
     @Test
     void shouldReturn404WhenDeletingNonExistentGraph() throws Exception {
         UUID randomUuid = UuidV7Generator.generate();
-        mockMvc.perform(delete("/graphs/" + randomUuid).with(authenticatedUser))
+        mockMvc.perform(delete("/graphs/" + randomUuid).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isNotFound());
     }
 
@@ -202,7 +203,7 @@ class GraphControllerTest {
         Graph graph = new Graph("Test Graph");
         Graph savedGraph = graphRepository.save(graph);
 
-        mockMvc.perform(post("/graphs/" + savedGraph.getId() + "/nodes").with(authenticatedUser)
+        mockMvc.perform(post("/graphs/" + savedGraph.getId() + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"New Node\"}"))
                 .andExpect(status().isCreated())
@@ -214,7 +215,7 @@ class GraphControllerTest {
     @Test
     void shouldCreateNodeViaGraphIdEndpoint() throws Exception {
         // Create graph via REST endpoint (mimics user's actual flow)
-        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser)
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Test Graph\"}"))
                 .andExpect(status().isCreated())
@@ -224,7 +225,7 @@ class GraphControllerTest {
         String graphId = objectMapper.readTree(graphResponse).get("id").asText();
 
         // Add node via POST /graphs/{id} (the endpoint reported as failing)
-        mockMvc.perform(post("/graphs/" + graphId).with(authenticatedUser)
+        mockMvc.perform(post("/graphs/" + graphId).with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"node 1\"}"))
                 .andExpect(status().isCreated())
@@ -235,7 +236,7 @@ class GraphControllerTest {
     @Test
     void shouldCreateMultipleNodesViaRestEndpoints() throws Exception {
         // Create graph via REST
-        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser)
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Test Graph\"}"))
                 .andExpect(status().isCreated())
@@ -244,14 +245,14 @@ class GraphControllerTest {
         String graphId = objectMapper.readTree(graphResponse).get("id").asText();
 
         // Add first node
-        mockMvc.perform(post("/graphs/" + graphId).with(authenticatedUser)
+        mockMvc.perform(post("/graphs/" + graphId).with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"node 1\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("node 1"));
 
         // Add second node
-        mockMvc.perform(post("/graphs/" + graphId).with(authenticatedUser)
+        mockMvc.perform(post("/graphs/" + graphId).with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"node 2\"}"))
                 .andExpect(status().isCreated())
@@ -269,7 +270,7 @@ class GraphControllerTest {
         // This ensures @PostLoad is triggered when the graph is reloaded
 
         // Create graph via REST
-        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser)
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Test Graph\"}"))
                 .andExpect(status().isCreated())
@@ -282,7 +283,7 @@ class GraphControllerTest {
         entityManager.clear();
 
         // Add node via POST /graphs/{id} - this should trigger @PostLoad when loading the graph
-        mockMvc.perform(post("/graphs/" + graphId).with(authenticatedUser)
+        mockMvc.perform(post("/graphs/" + graphId).with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"node 1\"}"))
                 .andExpect(status().isCreated())
@@ -302,7 +303,7 @@ class GraphControllerTest {
     @Test
     void shouldReturn404WhenCreatingNodeInNonExistentGraph() throws Exception {
         UUID randomUuid = UuidV7Generator.generate();
-        mockMvc.perform(post("/graphs/" + randomUuid + "/nodes").with(authenticatedUser)
+        mockMvc.perform(post("/graphs/" + randomUuid + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"New Node\"}"))
                 .andExpect(status().isNotFound());
@@ -313,7 +314,7 @@ class GraphControllerTest {
         Graph graph = new Graph("Test Graph");
         Graph savedGraph = graphRepository.save(graph);
 
-        mockMvc.perform(post("/graphs/" + savedGraph.getId() + "/nodes").with(authenticatedUser)
+        mockMvc.perform(post("/graphs/" + savedGraph.getId() + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest());
@@ -323,7 +324,7 @@ class GraphControllerTest {
     @Test
     void shouldReturnNodeByIdWithLinks() throws Exception {
         // Create graph and node via REST endpoints to ensure proper setup
-        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser)
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Test Graph\"}"))
                 .andExpect(status().isCreated())
@@ -331,7 +332,7 @@ class GraphControllerTest {
 
         String graphId = objectMapper.readTree(graphResponse).get("id").asText();
 
-        String nodeResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node A\"}"))
                 .andExpect(status().isCreated())
@@ -350,7 +351,7 @@ class GraphControllerTest {
     @Test
     void shouldReturnNodeWithLinkedNodes() throws Exception {
         // Create graph
-        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser)
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Test Graph\"}"))
                 .andExpect(status().isCreated())
@@ -359,19 +360,19 @@ class GraphControllerTest {
         String graphId = objectMapper.readTree(graphResponse).get("id").asText();
 
         // Create nodes
-        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node A\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node B\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        String nodeCResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeCResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node C\"}"))
                 .andExpect(status().isCreated())
@@ -382,10 +383,10 @@ class GraphControllerTest {
         String nodeCId = objectMapper.readTree(nodeCResponse).get("id").asText();
 
         // Add edges: A -> B and A -> C
-        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser))
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeCId).with(authenticatedUser))
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeCId).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isOk());
 
         // Get node A with its links
@@ -411,7 +412,7 @@ class GraphControllerTest {
     @Test
     void shouldAddEdgeBetweenNodes() throws Exception {
         // Create graph and nodes via REST
-        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser)
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Test Graph\"}"))
                 .andExpect(status().isCreated())
@@ -419,13 +420,13 @@ class GraphControllerTest {
 
         String graphId = objectMapper.readTree(graphResponse).get("id").asText();
 
-        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node A\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node B\"}"))
                 .andExpect(status().isCreated())
@@ -434,7 +435,7 @@ class GraphControllerTest {
         String nodeAId = objectMapper.readTree(nodeAResponse).get("id").asText();
         String nodeBId = objectMapper.readTree(nodeBResponse).get("id").asText();
 
-        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser))
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isOk());
     }
 
@@ -443,7 +444,7 @@ class GraphControllerTest {
         UUID randomUuid = UuidV7Generator.generate();
         UUID nodeAId = UuidV7Generator.generate();
         UUID nodeBId = UuidV7Generator.generate();
-        mockMvc.perform(post("/graphs/" + randomUuid + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser))
+        mockMvc.perform(post("/graphs/" + randomUuid + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isNotFound());
     }
 
@@ -451,7 +452,7 @@ class GraphControllerTest {
     @Test
     void shouldPerformDepthFirstSearch() throws Exception {
         // Create graph
-        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser)
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Test Graph\"}"))
                 .andExpect(status().isCreated())
@@ -460,19 +461,19 @@ class GraphControllerTest {
         String graphId = objectMapper.readTree(graphResponse).get("id").asText();
 
         // Create nodes
-        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node A\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node B\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        String nodeCResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeCResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node C\"}"))
                 .andExpect(status().isCreated())
@@ -483,10 +484,10 @@ class GraphControllerTest {
         String nodeCId = objectMapper.readTree(nodeCResponse).get("id").asText();
 
         // Add edges: A -> B -> C
-        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser))
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeBId + "/" + nodeCId).with(authenticatedUser))
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeBId + "/" + nodeCId).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/graphs/" + graphId + "/dfs/" + nodeAId).with(authenticatedUser))
@@ -507,7 +508,7 @@ class GraphControllerTest {
     @Test
     void shouldPerformBreadthFirstSearch() throws Exception {
         // Create graph
-        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser)
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Test Graph\"}"))
                 .andExpect(status().isCreated())
@@ -516,19 +517,19 @@ class GraphControllerTest {
         String graphId = objectMapper.readTree(graphResponse).get("id").asText();
 
         // Create nodes
-        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node A\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node B\"}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        String nodeCResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser)
+        String nodeCResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Node C\"}"))
                 .andExpect(status().isCreated())
@@ -539,10 +540,10 @@ class GraphControllerTest {
         String nodeCId = objectMapper.readTree(nodeCResponse).get("id").asText();
 
         // Add edges: A -> B -> C
-        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser))
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeBId + "/" + nodeCId).with(authenticatedUser))
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeBId + "/" + nodeCId).with(authenticatedUser).with(csrf()))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/graphs/" + graphId + "/bfs/" + nodeAId).with(authenticatedUser))
