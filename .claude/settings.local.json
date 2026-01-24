@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn clean compile:*)",
+      "Bash(mvn test:*)",
+      "Bash(git stash:*)",
+      "Bash(mvn compile:*)",
+      "Bash(curl:*)",
+      "Bash(# Check if the event listener log message appears curl -s http://localhost:8080/actuator/loggers/com.robsartin.graphs.application.listeners.GraphMetricsEventListener)",
+      "Bash(/Users/sartin/code/forge/src/test/java/com/robsartin/graphs/application/services/)"
+    ]
+  }
+}

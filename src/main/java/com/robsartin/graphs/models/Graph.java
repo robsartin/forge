@@ -5,6 +5,7 @@ import com.robsartin.graphs.infrastructure.UuidV7Generator;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PostLoad;
@@ -27,10 +28,10 @@ public class Graph {
 
     private String name;
 
-    @OneToMany(mappedBy = "graph", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "graph", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<GraphNode> nodes = new ArrayList<>();
 
-    @OneToMany(mappedBy = "graph", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "graph", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<GraphEdge> edges = new ArrayList<>();
 
     @Transient

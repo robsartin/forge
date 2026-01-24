@@ -22,13 +22,140 @@ function GraphEditor() {
     const [status, setStatus] = useState('Ready');
     const [interactionMode, setInteractionMode] = useState('rename');
     const [user, setUser] = useState(null);
+    const [showGraphMetrics, setShowGraphMetrics] = useState(false);
+    const [showNodeMetrics, setShowNodeMetrics] = useState(false);
+    const [showDistribution, setShowDistribution] = useState(false);
+    const [graphMetrics, setGraphMetrics] = useState(null);
+    const [nodeMetrics, setNodeMetrics] = useState(null);
+    const [distributionData, setDistributionData] = useState([]);
+    const [selectedNodeForMetrics, setSelectedNodeForMetrics] = useState(null);
     const graphContainerRef = useRef(null);
+    const mousePositionRef = useRef({ x: 0, y: 0 });
 
     // Load user info and graphs on mount
     useEffect(() => {
         loadUserInfo();
         loadGraphs();
     }, []);
+
+    // Track mouse position over graph container
+    useEffect(() => {
+        const container = graphContainerRef.current;
+        if (!container) return;
+
+        const handleMouseMove = (event) => {
+            const rect = container.getBoundingClientRect();
+            mousePositionRef.current = {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        };
+
+        container.addEventListener('mousemove', handleMouseMove);
+        return () => container.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    // Find closest node to current mouse position
+    const findClosestNode = useCallback(() => {
+        if (nodes.length === 0) return null;
+
+        const mouseX = mousePositionRef.current.x;
+        const mouseY = mousePositionRef.current.y;
+
+        let closestNode = null;
+        let closestDistance = Infinity;
+
+        for (const node of nodes) {
+            if (node.x === undefined || node.y === undefined) continue;
+            const dx = node.x - mouseX;
+            const dy = node.y - mouseY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestNode = node;
+            }
+        }
+
+        return closestNode;
+    }, [nodes]);
+
+    // Keyboard hotkeys for metrics panes
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            // Ignore if user is typing in an input
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            if (event.key === 'm' || event.key === 'M') {
+                handleShowGraphMetrics();
+            } else if (event.key === 'd' || event.key === 'D') {
+                handleShowDistribution();
+            } else if (event.key === 'n' || event.key === 'N') {
+                handleShowNodeMetrics();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedGraph, findClosestNode]);
+
+    const handleShowGraphMetrics = async () => {
+        if (!selectedGraph) {
+            setStatus('Select a graph first to view metrics');
+            return;
+        }
+        try {
+            const metrics = await api.getGraphMetrics(selectedGraph.id);
+            if (metrics) {
+                setGraphMetrics(metrics);
+                setShowGraphMetrics(true);
+                setStatus('Displaying graph metrics');
+            } else {
+                setStatus('Metrics not yet computed for this graph');
+            }
+        } catch (err) {
+            setError('Failed to load graph metrics');
+        }
+    };
+
+    const handleShowDistribution = async () => {
+        if (!selectedGraph) {
+            setStatus('Select a graph first to view distribution');
+            return;
+        }
+        try {
+            const distribution = await api.getDegreeDistribution(selectedGraph.id);
+            setDistributionData(distribution);
+            setShowDistribution(true);
+            setStatus('Displaying degree distribution');
+        } catch (err) {
+            setError('Failed to load degree distribution');
+        }
+    };
+
+    const handleShowNodeMetrics = useCallback(async () => {
+        if (!selectedGraph) {
+            setStatus('Select a graph first to view node metrics');
+            return;
+        }
+        const closestNode = findClosestNode();
+        if (!closestNode) {
+            setStatus('No nodes in graph');
+            return;
+        }
+        try {
+            const metrics = await api.getNodeMetrics(selectedGraph.id, closestNode.id);
+            if (metrics) {
+                setSelectedNodeForMetrics(closestNode);
+                setNodeMetrics(metrics);
+                setShowNodeMetrics(true);
+                setStatus(`Displaying metrics for node: ${closestNode.name}`);
+            } else {
+                setStatus('Node metrics not yet computed');
+            }
+        } catch (err) {
+            setError('Failed to load node metrics');
+        }
+    }, [selectedGraph, findClosestNode]);
 
     const loadUserInfo = async () => {
         try {
@@ -298,6 +425,9 @@ function GraphEditor() {
                             <li><strong>Click canvas</strong> to create a node</li>
                             <li>Select a mode below to interact with nodes</li>
                             <li>Scroll to zoom, right-drag to pan</li>
+                            <li>Press <strong>N</strong> for nearest node metrics</li>
+                            <li>Press <strong>M</strong> for graph metrics</li>
+                            <li>Press <strong>D</strong> for degree distribution</li>
                         </ul>
                     </div>
 
@@ -493,6 +623,139 @@ function GraphEditor() {
             <footer className="status-bar">
                 {status}
             </footer>
+
+            {/* Graph Metrics Pane */}
+            {showGraphMetrics && graphMetrics && (
+                <div className="metrics-overlay" onClick={() => setShowGraphMetrics(false)}>
+                    <div className="metrics-pane" onClick={e => e.stopPropagation()}>
+                        <div className="metrics-header">
+                            <h3>Graph Metrics</h3>
+                            <button className="close-btn" onClick={() => setShowGraphMetrics(false)}>&times;</button>
+                        </div>
+                        <div className="metrics-content">
+                            <div className="metrics-grid">
+                                <div className="metric-item">
+                                    <span className="metric-label">Nodes</span>
+                                    <span className="metric-value">{graphMetrics.nodeCount}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Edges</span>
+                                    <span className="metric-value">{graphMetrics.edgeCount}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Density</span>
+                                    <span className="metric-value">{graphMetrics.density?.toFixed(4) || '0'}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Avg Degree</span>
+                                    <span className="metric-value">{graphMetrics.averageDegree?.toFixed(2) || '0'}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Connected</span>
+                                    <span className="metric-value">{graphMetrics.connected ? 'Yes' : 'No'}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Components</span>
+                                    <span className="metric-value">{graphMetrics.componentCount}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Diameter</span>
+                                    <span className="metric-value">{graphMetrics.diameter ?? 'N/A'}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Avg Path Length</span>
+                                    <span className="metric-value">{graphMetrics.averagePathLength?.toFixed(2) || 'N/A'}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Avg Clustering</span>
+                                    <span className="metric-value">{graphMetrics.averageClusteringCoefficient?.toFixed(4) || '0'}</span>
+                                </div>
+                            </div>
+                            <div className="metrics-footer">
+                                <small>Computed: {graphMetrics.computedAt ? new Date(graphMetrics.computedAt).toLocaleString() : 'Unknown'}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Node Metrics Pane */}
+            {showNodeMetrics && nodeMetrics && (
+                <div className="metrics-overlay" onClick={() => setShowNodeMetrics(false)}>
+                    <div className="metrics-pane" onClick={e => e.stopPropagation()}>
+                        <div className="metrics-header">
+                            <h3>Node Metrics: {selectedNodeForMetrics?.name}</h3>
+                            <button className="close-btn" onClick={() => setShowNodeMetrics(false)}>&times;</button>
+                        </div>
+                        <div className="metrics-content">
+                            <div className="metrics-grid">
+                                <div className="metric-item">
+                                    <span className="metric-label">In-Degree</span>
+                                    <span className="metric-value">{nodeMetrics.inDegree}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Out-Degree</span>
+                                    <span className="metric-value">{nodeMetrics.outDegree}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Degree Centrality</span>
+                                    <span className="metric-value">{nodeMetrics.degreeCentrality?.toFixed(4) || '0'}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Betweenness</span>
+                                    <span className="metric-value">{nodeMetrics.betweennessCentrality?.toFixed(4) || '0'}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Closeness</span>
+                                    <span className="metric-value">{nodeMetrics.closenessCentrality?.toFixed(4) || '0'}</span>
+                                </div>
+                                <div className="metric-item">
+                                    <span className="metric-label">Clustering</span>
+                                    <span className="metric-value">{nodeMetrics.clusteringCoefficient?.toFixed(4) || '0'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Degree Distribution Pane */}
+            {showDistribution && (
+                <div className="metrics-overlay" onClick={() => setShowDistribution(false)}>
+                    <div className="metrics-pane distribution-pane" onClick={e => e.stopPropagation()}>
+                        <div className="metrics-header">
+                            <h3>Degree Distribution</h3>
+                            <button className="close-btn" onClick={() => setShowDistribution(false)}>&times;</button>
+                        </div>
+                        <div className="metrics-content">
+                            {distributionData.length === 0 ? (
+                                <p className="no-data">No distribution data available</p>
+                            ) : (
+                                <div className="distribution-table">
+                                    <div className="distribution-header">
+                                        <span>Degree</span>
+                                        <span>Count</span>
+                                        <span>Distribution</span>
+                                    </div>
+                                    {distributionData.map((item, index) => {
+                                        const maxCount = Math.max(...distributionData.map(d => d.count));
+                                        const barWidth = (item.count / maxCount) * 100;
+                                        return (
+                                            <div key={index} className="distribution-row">
+                                                <span className="degree-value">{item.degree}</span>
+                                                <span className="node-count">{item.count}</span>
+                                                <div className="distribution-bar-container">
+                                                    <div className="distribution-bar" style={{ width: `${barWidth}%` }}></div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

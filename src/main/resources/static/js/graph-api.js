@@ -3,6 +3,39 @@
  */
 const API_BASE = '';
 
+// CSRF token cache
+let csrfToken = null;
+let csrfHeaderName = 'X-CSRF-TOKEN';
+
+/**
+ * Fetch CSRF token from server
+ */
+async function fetchCsrfToken() {
+    if (csrfToken) return csrfToken;
+    const res = await fetch('/api/csrf', { credentials: 'same-origin' });
+    if (res.ok) {
+        const data = await res.json();
+        csrfToken = data.token;
+        csrfHeaderName = data.headerName || 'X-CSRF-TOKEN';
+    }
+    return csrfToken;
+}
+
+/**
+ * Get headers with CSRF token for state-changing requests
+ */
+async function getHeaders(includeJson = true) {
+    const token = await fetchCsrfToken();
+    const headers = {};
+    if (includeJson) {
+        headers['Content-Type'] = 'application/json';
+    }
+    if (token) {
+        headers[csrfHeaderName] = token;
+    }
+    return headers;
+}
+
 const graphApi = {
     /**
      * Get all graphs
@@ -21,8 +54,9 @@ const graphApi = {
     async createGraph(name) {
         const res = await fetch(`${API_BASE}/graphs`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
+            headers: await getHeaders(),
+            body: JSON.stringify({ name }),
+            credentials: 'same-origin'
         });
         return res.json();
     },
@@ -32,7 +66,11 @@ const graphApi = {
      * @param {string} id - Graph ID
      */
     async deleteGraph(id) {
-        await fetch(`${API_BASE}/graphs/${id}`, { method: 'DELETE' });
+        await fetch(`${API_BASE}/graphs/${id}`, {
+            method: 'DELETE',
+            headers: await getHeaders(false),
+            credentials: 'same-origin'
+        });
     },
 
     /**
@@ -54,8 +92,9 @@ const graphApi = {
     async createNode(graphId, name) {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/nodes`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
+            headers: await getHeaders(),
+            body: JSON.stringify({ name }),
+            credentials: 'same-origin'
         });
         return res.json();
     },
@@ -68,7 +107,9 @@ const graphApi = {
      */
     async addEdge(graphId, fromId, toId) {
         await fetch(`${API_BASE}/graphs/${graphId}/nodes/${fromId}/${toId}`, {
-            method: 'POST'
+            method: 'POST',
+            headers: await getHeaders(false),
+            credentials: 'same-origin'
         });
     },
 
@@ -93,8 +134,9 @@ const graphApi = {
     async updateNode(graphId, nodeId, name) {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/nodes/${nodeId}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
+            headers: await getHeaders(),
+            body: JSON.stringify({ name }),
+            credentials: 'same-origin'
         });
         return res.json();
     },
@@ -106,7 +148,9 @@ const graphApi = {
      */
     async deleteNode(graphId, nodeId) {
         await fetch(`${API_BASE}/graphs/${graphId}/nodes/${nodeId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: await getHeaders(false),
+            credentials: 'same-origin'
         });
     },
 
@@ -118,8 +162,44 @@ const graphApi = {
      */
     async deleteEdge(graphId, fromId, toId) {
         await fetch(`${API_BASE}/graphs/${graphId}/nodes/${fromId}/${toId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: await getHeaders(false),
+            credentials: 'same-origin'
         });
+    },
+
+    /**
+     * Get graph metrics
+     * @param {string} graphId - Graph ID
+     * @returns {Promise<Object|null>} Graph metrics or null if not available
+     */
+    async getGraphMetrics(graphId) {
+        const res = await fetch(`${API_BASE}/graphs/${graphId}/metrics`);
+        if (!res.ok) return null;
+        return res.json();
+    },
+
+    /**
+     * Get node metrics
+     * @param {string} graphId - Graph ID
+     * @param {string} nodeId - Node ID
+     * @returns {Promise<Object|null>} Node metrics or null if not available
+     */
+    async getNodeMetrics(graphId, nodeId) {
+        const res = await fetch(`${API_BASE}/graphs/${graphId}/metrics/nodes/${nodeId}`);
+        if (!res.ok) return null;
+        return res.json();
+    },
+
+    /**
+     * Get degree distribution
+     * @param {string} graphId - Graph ID
+     * @returns {Promise<Array>} Degree distribution data
+     */
+    async getDegreeDistribution(graphId) {
+        const res = await fetch(`${API_BASE}/graphs/${graphId}/metrics/distribution`);
+        if (!res.ok) return [];
+        return res.json();
     }
 };
 

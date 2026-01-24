@@ -1,7 +1,13 @@
 package com.robsartin.graphs.application;
 
 import com.robsartin.graphs.models.Graph;
+import com.robsartin.graphs.models.GraphDegreeDistribution;
+import com.robsartin.graphs.models.GraphMetrics;
 import com.robsartin.graphs.models.GraphNode;
+import com.robsartin.graphs.models.GraphNodeMetrics;
+import com.robsartin.graphs.ports.out.GraphDegreeDistributionRepository;
+import com.robsartin.graphs.ports.out.GraphMetricsRepository;
+import com.robsartin.graphs.ports.out.GraphNodeMetricsRepository;
 import com.robsartin.graphs.ports.out.GraphRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
@@ -19,6 +25,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -35,9 +42,18 @@ import java.util.UUID;
 public class GraphController {
 
     private final GraphRepository graphRepository;
+    private final GraphMetricsRepository metricsRepository;
+    private final GraphNodeMetricsRepository nodeMetricsRepository;
+    private final GraphDegreeDistributionRepository degreeDistRepository;
 
-    public GraphController(GraphRepository graphRepository) {
+    public GraphController(GraphRepository graphRepository,
+                          GraphMetricsRepository metricsRepository,
+                          GraphNodeMetricsRepository nodeMetricsRepository,
+                          GraphDegreeDistributionRepository degreeDistRepository) {
         this.graphRepository = graphRepository;
+        this.metricsRepository = metricsRepository;
+        this.nodeMetricsRepository = nodeMetricsRepository;
+        this.degreeDistRepository = degreeDistRepository;
     }
 
     /**
@@ -93,6 +109,7 @@ public class GraphController {
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     @Operation(summary = "Create a new graph", description = "Creates a new graph with the specified name")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Graph created successfully",
@@ -121,6 +138,7 @@ public class GraphController {
      * @return 204 No Content if deleted, 404 if not found, 403 if delete is disabled
      */
     @DeleteMapping("/{id}")
+    @Transactional
     @Operation(summary = "Delete a graph", description = "Deletes a graph by its ID. Requires delete feature flag to be enabled")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Graph deleted successfully"),
@@ -177,6 +195,7 @@ public class GraphController {
      * @return the created node with HTTP 201 status
      */
     @PostMapping("/{id}/nodes")
+    @Transactional
     @Operation(summary = "Create a new node", description = "Creates a new node in the specified graph")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Node created successfully",
@@ -210,6 +229,7 @@ public class GraphController {
     }
 
     @PostMapping("/{id}")
+    @Transactional
     @Operation(summary = "Create a new node (alternative)", description = "Alternative endpoint to create a new node in the specified graph")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Node created successfully",
@@ -283,6 +303,7 @@ public class GraphController {
      * @return the updated node if found, 404 if not found
      */
     @PatchMapping("/{id}/nodes/{nodeId}")
+    @Transactional
     @Operation(summary = "Update node name", description = "Updates the name of a specific node in the graph")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Node updated successfully",
@@ -318,6 +339,7 @@ public class GraphController {
      * @return 204 No Content if deleted, 404 if not found
      */
     @DeleteMapping("/{id}/nodes/{nodeId}")
+    @Transactional
     @Operation(summary = "Delete a node", description = "Deletes a node and all edges connected to it")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Node deleted successfully"),
@@ -350,6 +372,7 @@ public class GraphController {
      * @return 200 OK if edge added, 404 if graph not found, 400 if nodes not found
      */
     @PostMapping("/{id}/nodes/{fromId}/{toId}")
+    @Transactional
     @Operation(summary = "Add edge between nodes", description = "Creates a directed edge from one node to another in the specified graph")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Edge added successfully"),
@@ -396,6 +419,7 @@ public class GraphController {
      * @return 204 No Content if deleted, 404 if not found
      */
     @DeleteMapping("/{id}/nodes/{fromId}/{toId}")
+    @Transactional
     @Operation(summary = "Delete edge between nodes", description = "Removes a directed edge from one node to another")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Edge deleted successfully"),
@@ -495,6 +519,104 @@ public class GraphController {
     }
 
     /**
+     * GET /graphs/{id}/metrics - Retrieves aggregate metrics for a graph
+     *
+     * @param id the graph ID
+     * @return the graph metrics if available, 404 if not found
+     */
+    @GetMapping("/{id}/metrics")
+    @Operation(summary = "Get graph metrics", description = "Retrieves computed metrics for a graph including node count, edge count, density, connectivity, etc.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Metrics found",
+                    content = @Content(schema = @Schema(implementation = GraphMetricsResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph or metrics not found", content = @Content)
+    })
+    @Timed(value = "metrics.getGraphMetrics", description = "Time taken to retrieve graph metrics")
+    public ResponseEntity<GraphMetricsResponse> getGraphMetrics(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id) {
+        if (!graphRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        return metricsRepository.findByGraphId(id)
+                .map(metrics -> ResponseEntity.ok(new GraphMetricsResponse(
+                        metrics.getNodeCount(),
+                        metrics.getEdgeCount(),
+                        metrics.getDensity(),
+                        metrics.getAverageDegree(),
+                        metrics.isConnected(),
+                        metrics.getComponentCount(),
+                        metrics.getDiameter(),
+                        metrics.getAveragePathLength(),
+                        metrics.getAverageClusteringCoefficient(),
+                        metrics.getComputedAt().toString()
+                )))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * GET /graphs/{id}/metrics/nodes/{nodeId} - Retrieves metrics for a specific node
+     *
+     * @param id the graph ID
+     * @param nodeId the node ID
+     * @return the node metrics if available, 404 if not found
+     */
+    @GetMapping("/{id}/metrics/nodes/{nodeId}")
+    @Operation(summary = "Get node metrics", description = "Retrieves computed centrality and clustering metrics for a specific node")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Node metrics found",
+                    content = @Content(schema = @Schema(implementation = NodeMetricsResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph, node, or metrics not found", content = @Content)
+    })
+    @Timed(value = "metrics.getNodeMetrics", description = "Time taken to retrieve node metrics")
+    public ResponseEntity<NodeMetricsResponse> getNodeMetrics(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "Node ID", required = true) @PathVariable UUID nodeId) {
+        if (!graphRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        return nodeMetricsRepository.findByGraphId(id).stream()
+                .filter(m -> m.getNodeId().equals(nodeId))
+                .findFirst()
+                .map(metrics -> ResponseEntity.ok(new NodeMetricsResponse(
+                        metrics.getNodeId(),
+                        metrics.getDegreeCentrality(),
+                        metrics.getInDegree(),
+                        metrics.getOutDegree(),
+                        metrics.getBetweennessCentrality(),
+                        metrics.getClosenessCentrality(),
+                        metrics.getClusteringCoefficient()
+                )))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * GET /graphs/{id}/metrics/distribution - Retrieves degree distribution for a graph
+     *
+     * @param id the graph ID
+     * @return the degree distribution if available, 404 if not found
+     */
+    @GetMapping("/{id}/metrics/distribution")
+    @Operation(summary = "Get degree distribution", description = "Retrieves the degree frequency distribution for a graph")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Distribution found",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = DegreeDistributionResponse.class)))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "metrics.getDegreeDistribution", description = "Time taken to retrieve degree distribution")
+    public ResponseEntity<List<DegreeDistributionResponse>> getDegreeDistribution(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id) {
+        if (!graphRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        List<GraphDegreeDistribution> distribution = degreeDistRepository.findByGraphId(id);
+        List<DegreeDistributionResponse> response = distribution.stream()
+                .map(d -> new DegreeDistributionResponse(d.getDegreeValue(), d.getNodeCount()))
+                .sorted((a, b) -> Integer.compare(a.degree(), b.degree()))
+                .toList();
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Request DTO for creating a graph
      */
     @Schema(description = "Request body for creating a new graph")
@@ -554,5 +676,64 @@ public class GraphController {
             NodeInfoResponse node,
             @Schema(description = "List of nodes connected via outgoing edges")
             List<NodeInfoResponse> toNodes) {
+    }
+
+    /**
+     * Response DTO for graph metrics
+     */
+    @Schema(description = "Computed metrics for a graph")
+    public record GraphMetricsResponse(
+            @Schema(description = "Number of nodes in the graph")
+            int nodeCount,
+            @Schema(description = "Number of edges in the graph")
+            int edgeCount,
+            @Schema(description = "Graph density (ratio of actual edges to possible edges)")
+            double density,
+            @Schema(description = "Average degree of nodes")
+            double averageDegree,
+            @Schema(description = "Whether the graph is weakly connected")
+            boolean connected,
+            @Schema(description = "Number of connected components")
+            int componentCount,
+            @Schema(description = "Graph diameter (longest shortest path), null if disconnected")
+            Integer diameter,
+            @Schema(description = "Average shortest path length, null if disconnected")
+            Double averagePathLength,
+            @Schema(description = "Average clustering coefficient")
+            Double averageClusteringCoefficient,
+            @Schema(description = "Timestamp when metrics were computed")
+            String computedAt) {
+    }
+
+    /**
+     * Response DTO for node metrics
+     */
+    @Schema(description = "Computed centrality metrics for a node")
+    public record NodeMetricsResponse(
+            @Schema(description = "Node ID")
+            UUID nodeId,
+            @Schema(description = "Degree centrality (normalized)")
+            double degreeCentrality,
+            @Schema(description = "Number of incoming edges")
+            Integer inDegree,
+            @Schema(description = "Number of outgoing edges")
+            Integer outDegree,
+            @Schema(description = "Betweenness centrality")
+            Double betweennessCentrality,
+            @Schema(description = "Closeness centrality")
+            Double closenessCentrality,
+            @Schema(description = "Local clustering coefficient")
+            Double clusteringCoefficient) {
+    }
+
+    /**
+     * Response DTO for degree distribution entry
+     */
+    @Schema(description = "Degree frequency in the distribution")
+    public record DegreeDistributionResponse(
+            @Schema(description = "Degree value")
+            int degree,
+            @Schema(description = "Number of nodes with this degree")
+            int count) {
     }
 }

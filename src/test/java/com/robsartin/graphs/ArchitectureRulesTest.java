@@ -46,7 +46,8 @@ class ArchitectureRulesTest {
                             "org.junit..",
                             "org.jmolecules..",
                             "org.slf4j..",
-                            "org.springframework.."
+                            "org.springframework..",
+                            "org.assertj.."
                             )
                     .allowEmptyShould(true)
                     .check(classes);
@@ -132,7 +133,9 @@ class ArchitectureRulesTest {
                             "io.micrometer..",
                             "com.robsartin.graphs..",
                             "org.springframework..",
-                            "org.jmolecules.."
+                            "org.jmolecules..",
+                            "org.slf4j..",
+                            "jakarta.."
                     )
                     .allowEmptyShould(true)
                     .check(classes);
