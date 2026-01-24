@@ -2,7 +2,7 @@ spring:
   application:
     name: graph-experiment
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:local}
   main:
     lazy-initialization: true
   threads:
@@ -27,12 +27,12 @@ spring:
             user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
             user-name-attribute: sub
 
-  # H2 Database Configuration
+  # PostgreSQL Database Configuration
   datasource:
-    url: jdbc:h2:mem:graphdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/graphdb}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: 32
       minimum-idle: 8
@@ -42,19 +42,13 @@ spring:
 
   # JPA/Hibernate Configuration
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: create-drop
-    show-sql: true
+      ddl-auto: update
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
-
-  # H2 Console (accessible at http://localhost:8080/h2-console)
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
 
 jmolecules:
   ddd:

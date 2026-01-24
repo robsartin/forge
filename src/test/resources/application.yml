@@ -1,0 +1,87 @@
+# Test Configuration - Uses H2 in-memory database
+spring:
+  application:
+    name: graph-experiment-test
+  main:
+    lazy-initialization: true
+  threads:
+    virtual:
+      enabled: true
+
+  # Disable OAuth2 for tests
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+            scope:
+              - email
+              - profile
+
+  # H2 In-Memory Database for Tests
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+
+  # JPA/Hibernate Configuration for Tests
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+# Logging - quieter for tests
+logging:
+  level:
+    root: WARN
+    org.hibernate.SQL: WARN
+    com.robsartin.graphs: INFO
+
+# Actuator - match endpoints expected by tests
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,threaddump,env
+  endpoint:
+    health:
+      show-details: always
+    env:
+      show-values: always
+  tracing:
+    enabled: false
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
+# Resilience4J - faster timeouts for tests
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: false
+        sliding-window-size: 5
+        minimum-number-of-calls: 2
+        wait-duration-in-open-state: 1s
+
+  retry:
+    configs:
+      default:
+        max-attempts: 2
+        wait-duration: 100ms
+
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 1s

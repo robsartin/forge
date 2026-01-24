@@ -1,0 +1,146 @@
+# Production Configuration
+# Optimized for observability with Prometheus, Grafana, and centralized logging
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 5000
+      idle-timeout: 300000
+      max-lifetime: 900000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        generate_statistics: true
+
+# Production Logging Configuration
+logging:
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%level","thread":"%thread","correlationId":"%X{correlationId:-none}","logger":"%logger{36}","message":"%msg"}%n'
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    com.robsartin.graphs: INFO
+    org.springframework.security: WARN
+
+# Actuator & Observability for Prometheus/Grafana
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,threaddump,heapdump,loggers,env
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+    prometheus:
+      enabled: true
+    env:
+      show-values: when_authorized
+    loggers:
+      enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+    db:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: production
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        jvm.gc.pause: true
+      percentiles:
+        http.server.requests: 0.5,0.75,0.95,0.99
+        jvm.gc.pause: 0.5,0.75,0.95,0.99
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,5s
+  tracing:
+    enabled: true
+    sampling:
+      probability: 0.1
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector:4318/v1/traces}
+    metrics:
+      export:
+        enabled: true
+        endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector:4318/v1/metrics}
+        step: 30s
+
+# Server Configuration for Production
+server:
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 5s
+    max-connections: 10000
+    accept-count: 500
+    threads:
+      max: 200
+      min-spare: 20
+
+# Graceful shutdown timeout
+spring.lifecycle:
+  timeout-per-shutdown-phase: 30s
+
+# Resilience4J Production Tuning
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: true
+        sliding-window-size: 100
+        minimum-number-of-calls: 20
+        permitted-number-of-calls-in-half-open-state: 10
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 30s
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+        slow-call-rate-threshold: 50
+        record-failure-predicate: com.robsartin.graphs.infrastructure.resilience.RecordFailurePredicate
+
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.dao.TransientDataAccessException
+
+  ratelimiter:
+    configs:
+      default:
+        register-health-indicator: true
+        limit-for-period: 1000
+        limit-refresh-period: 1s
+        timeout-duration: 5s
+
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
+        cancel-running-future: true

@@ -36,3 +36,8 @@ target
 .worktrees/
 .security-key
 logs/security/
+
+# Local configuration with credentials
+application-local.yml
+src/main/resources/application-local.yml
+src/test/resources/application-local.yml
