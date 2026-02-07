@@ -1,4 +1,4 @@
-# Test Configuration - Uses H2 in-memory database
+# Test Configuration - Uses Docker PostgreSQL on port 5433
 spring:
   application:
     name: graph-experiment-test
@@ -20,25 +20,32 @@ spring:
               - email
               - profile
 
-  # H2 In-Memory Database for Tests
+  # Docker PostgreSQL for Tests (same engine as production)
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:postgresql://localhost:5433/graphdb
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: test
     hikari:
       maximum-pool-size: 5
       minimum-idle: 1
 
   # JPA/Hibernate Configuration for Tests
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
         format_sql: false
+
+  # Flyway runs migrations against test PG
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    clean-disabled: false
+    clean-on-validation-error: true
 
 # Logging - quieter for tests
 logging:
@@ -46,6 +53,7 @@ logging:
     root: WARN
     org.hibernate.SQL: WARN
     com.robsartin.graphs: INFO
+    org.flywaydb: WARN
 
 # Actuator - match endpoints expected by tests
 management:

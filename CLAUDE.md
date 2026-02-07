@@ -28,6 +28,17 @@ forge/
 
 ## Technology Stack
 
+## Spring Boot 
+When modifying Spring Boot configuration (application.yml, application-test.yml), always verify that test profiles remain compatible. Run tests after any actuator, security, or datasource configuration changes.
+
+When implementing Spring event-based features, prefer @EventListener over @TransactionalEventListener unless there is an explicit transactional requirement. Always verify lazy-loaded entity fields are initialized before event publication.
+
+For any endpoint that accepts POST/PUT/DELETE requests in a Spring Security + React app, always include CSRF token handling. On the backend, configure CSRF token repository (CookieCsrfTokenRepository). On the frontend, read the XSRF-TOKEN cookie and send it as X-XSRF-TOKEN header.
+
+## Workflow Rules
+
+After making changes, always run `./mvnw test` (or the project's test command) before reporting completion. For frontend changes, verify the dev server compiles without errors.
+
 ### Detected from Configuration
 - **Language:** Java (inferred from .gitignore)
 - **Ignored Artifacts:** .class, .jar, .war, .ear, .log files

@@ -9,7 +9,19 @@
       "Bash(# Check if the event listener log message appears curl -s http://localhost:8080/actuator/loggers/com.robsartin.graphs.application.listeners.GraphMetricsEventListener)",
       "Bash(/Users/sartin/code/forge/src/test/java/com/robsartin/graphs/application/services/)",
       "Bash(mvn clean test:*)",
-      "Bash(mvn spring-boot:run:*)"
+      "Bash(mvn spring-boot:run:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker run:*)",
+      "Bash(docker exec:*)",
+      "Bash(./mvnw test:*)",
+      "Bash(docker context inspect:*)",
+      "Bash(DOCKER_HOST=unix:///Users/sartin/.docker/run/docker.sock mvn test:*)",
+      "Bash(DOCKER_HOST=unix:///Users/sartin/.docker/run/docker.sock TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/Users/sartin/.docker/run/docker.sock mvn test:*)",
+      "Bash(docker info:*)",
+      "Bash(docker version:*)",
+      "Bash(DOCKER_HOST=unix:///Users/sartin/.docker/run/docker.sock DOCKER_API_VERSION=1.44 TESTCONTAINERS_RYUK_DISABLED=true mvn test:*)",
+      "Bash(chmod:*)"
     ]
   }
 }
