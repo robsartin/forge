@@ -80,6 +80,55 @@ class ImmutableGraphTest {
     }
 
     @Test
+    @DisplayName("Remove edge from graph")
+    void testRemoveEdge() {
+        ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();
+
+        var gn1 = g0.addNode("A");
+        var gn2 = gn1.getGraph().addNode("B");
+
+        ImmutableGraph<String, Integer> g1 = gn2.getGraph();
+        UUID nodeA = gn1.getNodeId();
+        UUID nodeB = gn2.getNodeId();
+
+        ImmutableGraph<String, Integer> withEdge = g1.addEdge(nodeA, nodeB, 10);
+        assertTrue(withEdge.getContext(nodeA).getSuccessors().containsKey(nodeB));
+
+        ImmutableGraph<String, Integer> withoutEdge = withEdge.removeEdge(nodeA, nodeB);
+
+        // Edge removed
+        assertFalse(withoutEdge.getContext(nodeA).getSuccessors().containsKey(nodeB));
+        // Nodes still present
+        assertEquals(2, withoutEdge.nodeCount());
+        // Original graph unchanged
+        assertTrue(withEdge.getContext(nodeA).getSuccessors().containsKey(nodeB));
+    }
+
+    @Test
+    @DisplayName("Add node with specific ID")
+    void testAddNodeWithId() {
+        ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();
+        UUID specificId = UUID.randomUUID();
+
+        var result = g0.addNodeWithId(specificId, "Custom");
+
+        assertEquals(specificId, result.getNodeId());
+        assertTrue(result.getGraph().containsNode(specificId));
+        assertEquals("Custom", result.getGraph().getContext(specificId).getLabel());
+    }
+
+    @Test
+    @DisplayName("Match on non-existent node returns empty decomposition")
+    void testMatchNonExistentNode() {
+        ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();
+        var gn1 = g0.addNode("A");
+
+        var decomp = gn1.getGraph().match(UUID.randomUUID());
+
+        assertTrue(decomp.isEmpty());
+    }
+
+    @Test
     @DisplayName("Match operation decomposes graph")
     void testMatch() {
         ImmutableGraph<String, Integer> g0 = new ImmutableGraph<>();

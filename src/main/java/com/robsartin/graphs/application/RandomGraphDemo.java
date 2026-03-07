@@ -1,6 +1,8 @@
 package com.robsartin.graphs.application;
 
 import com.robsartin.graphs.infrastructure.ImmutableGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -10,36 +12,33 @@ import java.util.*;
  */
 public class RandomGraphDemo {
 
+    private static final Logger log = LoggerFactory.getLogger(RandomGraphDemo.class);
     private static final int NUM_NODES = 10;
     private static final int NUM_EDGES = 40;
     private static final Random random = new Random();
 
     public static void main(String[] args) {
-        System.out.println("Creating random graph with preferential attachment...");
-        System.out.println("Nodes: " + NUM_NODES + ", Edges: " + NUM_EDGES);
-        System.out.println();
+        log.info("Creating random graph with preferential attachment...");
+        log.info("Nodes: {}, Edges: {}", NUM_NODES, NUM_EDGES);
 
         ImmutableGraph<String, Integer> graph = createRandomGraphWithPreferentialAttachment();
 
-        System.out.println("Graph created successfully!");
-        System.out.println();
+        log.info("Graph created successfully!");
 
         // Perform traversals using the first node
         UUID startNode = graph.getNodeIds().iterator().next();
 
         // Perform depth-first traversal starting from first node
-        System.out.println("=== Depth-First Traversal ===");
-        graph.depthFirstTraversal(startNode, context -> {
-            System.out.println(context.getLabel());
-        });
-
-        System.out.println();
+        log.info("=== Depth-First Traversal ===");
+        graph.depthFirstTraversal(startNode, context ->
+            log.info("{}", context.getLabel())
+        );
 
         // Perform breadth-first traversal starting from first node
-        System.out.println("=== Breadth-First Traversal ===");
-        graph.breadthFirstTraversal(startNode, context -> {
-            System.out.println(context.getLabel());
-        });
+        log.info("=== Breadth-First Traversal ===");
+        graph.breadthFirstTraversal(startNode, context ->
+            log.info("{}", context.getLabel())
+        );
     }
 
     /**

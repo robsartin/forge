@@ -27,4 +27,24 @@ class GraphSavedEventTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("graphId must not be null");
     }
+
+    @Test
+    @DisplayName("should support record equality")
+    void shouldSupportRecordEquality() {
+        UUID graphId = UUID.randomUUID();
+        GraphSavedEvent event1 = new GraphSavedEvent(graphId);
+        GraphSavedEvent event2 = new GraphSavedEvent(graphId);
+
+        assertThat(event1).isEqualTo(event2);
+        assertThat(event1.hashCode()).isEqualTo(event2.hashCode());
+    }
+
+    @Test
+    @DisplayName("should not be equal with different graphIds")
+    void shouldNotBeEqualWithDifferentIds() {
+        GraphSavedEvent event1 = new GraphSavedEvent(UUID.randomUUID());
+        GraphSavedEvent event2 = new GraphSavedEvent(UUID.randomUUID());
+
+        assertThat(event1).isNotEqualTo(event2);
+    }
 }

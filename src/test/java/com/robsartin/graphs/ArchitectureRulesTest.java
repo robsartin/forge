@@ -9,6 +9,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 /**
  * ArchUnit tests enforcing development rules and architectural standards.
@@ -33,8 +36,6 @@ class ArchitectureRulesTest {
         @Test
         @DisplayName("should enforce layered architecture - infrastructure independence")
         void shouldEnforceInfrastructureRules() {
-            // Infrastructure classes should be allowed to depend on Spring
-            // This rule passes because infrastructure is allowed to use Spring
             classes()
                     .that().resideInAPackage("com.robsartin.graphs.infrastructure..")
                     .should().onlyDependOnClassesThat().resideInAnyPackage(
@@ -62,6 +63,16 @@ class ArchitectureRulesTest {
                     .allowEmptyShould(true)
                     .check(classes);
         }
+
+        @Test
+        @DisplayName("application layer should not depend on infrastructure adapters")
+        void applicationShouldNotDependOnInfrastructureAdapters() {
+            noClasses()
+                    .that().resideInAPackage("com.robsartin.graphs.application..")
+                    .should().dependOnClassesThat().resideInAPackage("com.robsartin.graphs.infrastructure.adapters..")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
     }
 
     @Nested
@@ -81,6 +92,85 @@ class ArchitectureRulesTest {
         void allClassesShouldHaveMeaningfulNames() {
             classes()
                     .should().haveNameMatching(".*[A-Z].*")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+
+        @Test
+        @DisplayName("should not use field injection with @Autowired in production code")
+        void shouldNotUseFieldInjection() {
+            fields()
+                    .that().areDeclaredInClassesThat().haveSimpleNameNotEndingWith("Test")
+                    .should().notBeAnnotatedWith("org.springframework.beans.factory.annotation.Autowired")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+
+        @Test
+        @DisplayName("should not use System.out or System.err")
+        void shouldNotUseSystemOutOrErr() {
+            GeneralCodingRules.NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+    }
+
+    @Nested
+    @DisplayName("Naming Conventions")
+    class NamingConventions {
+
+        @Test
+        @DisplayName("service classes should end with Service")
+        void serviceClassesShouldEndWithService() {
+            classes()
+                    .that().areAnnotatedWith("org.springframework.stereotype.Service")
+                    .should().haveSimpleNameEndingWith("Service")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+
+        @Test
+        @DisplayName("repository interfaces should end with Repository")
+        void repositoryInterfacesShouldEndWithRepository() {
+            classes()
+                    .that().resideInAPackage("com.robsartin.graphs.ports.out..")
+                    .and().areInterfaces()
+                    .should().haveSimpleNameEndingWith("Repository")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+
+        @Test
+        @DisplayName("adapter classes should end with Adapter")
+        void adapterClassesShouldEndWithAdapter() {
+            classes()
+                    .that().resideInAPackage("com.robsartin.graphs.infrastructure.adapters..")
+                    .and().areNotInterfaces()
+                    .and().haveSimpleNameNotEndingWith("Repository")
+                    .and().haveSimpleNameNotEndingWith("Test")
+                    .should().haveSimpleNameEndingWith("Adapter")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+
+        @Test
+        @DisplayName("event classes should end with Event")
+        void eventClassesShouldEndWithEvent() {
+            classes()
+                    .that().resideInAPackage("com.robsartin.graphs.events..")
+                    .and().haveSimpleNameNotEndingWith("Test")
+                    .should().haveSimpleNameEndingWith("Event")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+
+        @Test
+        @DisplayName("listener classes should end with Listener or EventListener")
+        void listenerClassesShouldEndWithListener() {
+            classes()
+                    .that().resideInAPackage("com.robsartin.graphs.application.listeners..")
+                    .and().haveSimpleNameNotEndingWith("Test")
+                    .should().haveSimpleNameEndingWith("Listener")
                     .allowEmptyShould(true)
                     .check(classes);
         }
@@ -137,6 +227,28 @@ class ArchitectureRulesTest {
                             "org.slf4j..",
                             "jakarta.."
                     )
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+
+        @Test
+        @DisplayName("event classes should reside in events package")
+        void eventClassesShouldBeInEventsPackage() {
+            classes()
+                    .that().haveSimpleNameEndingWith("Event")
+                    .and().areNotAnnotations()
+                    .should().resideInAPackage("com.robsartin.graphs.events..")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+
+        @Test
+        @DisplayName("application production code should not depend on config")
+        void applicationShouldNotDependOnConfig() {
+            noClasses()
+                    .that().resideInAPackage("com.robsartin.graphs.application..")
+                    .and().haveSimpleNameNotEndingWith("Test")
+                    .should().dependOnClassesThat().resideInAPackage("com.robsartin.graphs.config..")
                     .allowEmptyShould(true)
                     .check(classes);
         }
