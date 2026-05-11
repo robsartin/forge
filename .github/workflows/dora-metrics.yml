@@ -1,10 +1,13 @@
 name: DORA Metrics
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   schedule:
-    - cron: '30 0 * * *'
+    - cron: "30 0 * * *"
   workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   dora-report:
@@ -19,7 +22,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Count releases
+        id: releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COUNT=$(gh release list --limit 1 --json tagName | jq 'length')
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+
       - name: Calculate DORA metrics
+        if: steps.releases.outputs.count != '0'
         id: dora
         uses: stenjo/devops-metrics-action@v1
         with:
@@ -27,13 +39,21 @@ jobs:
 
       - name: Write metrics to job summary
         run: |
-          {
-            echo "## DORA Metrics"
-            echo ""
-            echo "| Metric | Value |"
-            echo "|---|---|"
-            echo "| Deploy frequency | ${{ steps.dora.outputs.deploy-rate }} releases/week |"
-            echo "| Lead time | ${{ steps.dora.outputs.lead-time }} days |"
-            echo "| Change failure rate | ${{ steps.dora.outputs.change-failure-rate }}% |"
-            echo "| Mean time to restore | ${{ steps.dora.outputs.mttr }} hours |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.releases.outputs.count }}" = "0" ]; then
+            {
+              echo "## DORA Metrics"
+              echo ""
+              echo "_No GitHub releases yet — cut a release to start tracking deploy frequency, change failure rate, and MTTR. The workflow will start reporting metrics on the next run after the first release._"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## DORA Metrics"
+              echo ""
+              echo "| Metric | Value |"
+              echo "|---|---|"
+              echo "| Deploy frequency | ${{ steps.dora.outputs.deploy-rate }} releases/week |"
+              echo "| Lead time | ${{ steps.dora.outputs.lead-time }} days |"
+              echo "| Change failure rate | ${{ steps.dora.outputs.change-failure-rate }}% |"
+              echo "| Mean time to restore | ${{ steps.dora.outputs.mttr }} hours |"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
