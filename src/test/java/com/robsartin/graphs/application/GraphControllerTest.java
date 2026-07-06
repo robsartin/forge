@@ -633,4 +633,101 @@ class GraphControllerTest {
                 .andExpect(jsonPath("$.nodes.length()").value(1))
                 .andExpect(jsonPath("$.edges.length()").value(0));
     }
+
+    // GET /graphs/page - paginated graphs
+    @Test
+    void shouldReturnPaginatedGraphs() throws Exception {
+        // Create multiple graphs
+        for (int i = 1; i <= 5; i++) {
+            mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\": \"Graph " + i + "\"}"))
+                    .andExpect(status().isCreated());
+        }
+
+        // Get first page with size 2
+        mockMvc.perform(get("/graphs/page").with(authenticatedUser)
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(5))
+                .andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.hasPrevious").value(false));
+    }
+
+    @Test
+    void shouldReturnSecondPageOfGraphs() throws Exception {
+        // Create multiple graphs
+        for (int i = 1; i <= 5; i++) {
+            mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\": \"Test Graph " + i + "\"}"))
+                    .andExpect(status().isCreated());
+        }
+
+        // Get second page
+        mockMvc.perform(get("/graphs/page").with(authenticatedUser)
+                        .param("page", "1")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.hasPrevious").value(true));
+    }
+
+    @Test
+    void shouldLimitPageSizeTo100() throws Exception {
+        mockMvc.perform(get("/graphs/page").with(authenticatedUser)
+                        .param("size", "200"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(100));
+    }
+
+    // GET /graphs/{id}/nodes/page - paginated nodes
+    @Test
+    void shouldReturnPaginatedNodes() throws Exception {
+        // Create graph
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Paginated Nodes Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String graphId = objectMapper.readTree(graphResponse).get("id").asText();
+
+        // Create multiple nodes
+        for (int i = 1; i <= 5; i++) {
+            mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\": \"Node " + i + "\"}"))
+                    .andExpect(status().isCreated());
+        }
+
+        // Get first page with size 2
+        mockMvc.perform(get("/graphs/" + graphId + "/nodes/page").with(authenticatedUser)
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(5))
+                .andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.hasPrevious").value(false));
+    }
+
+    @Test
+    void shouldReturn404ForPaginatedNodesOnNonExistentGraph() throws Exception {
+        UUID randomUuid = UuidV7Generator.generate();
+        mockMvc.perform(get("/graphs/" + randomUuid + "/nodes/page").with(authenticatedUser))
+                .andExpect(status().isNotFound());
+    }
 }

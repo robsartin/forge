@@ -23,6 +23,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,6 +79,45 @@ public class GraphController {
         return graphRepository.findAll().stream()
                 .map(g -> new GraphSummaryResponse(g.getId(), g.getName()))
                 .toList();
+    }
+
+    /**
+     * GET /graphs/page - Retrieves graphs with pagination
+     *
+     * @param page page number (0-indexed, default 0)
+     * @param size page size (default 20, max 100)
+     * @return paginated list of graphs
+     */
+    @GetMapping("/page")
+    @Operation(summary = "Get graphs with pagination", description = "Retrieves a paginated list of graphs")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved paginated graphs",
+                    content = @Content(schema = @Schema(implementation = PagedGraphResponse.class)))
+    })
+    @Timed(value = "graph.getAllPaged", description = "Time taken to retrieve paginated graphs")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
+    public PagedGraphResponse getAllGraphsPaged(
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size (max 100)") @RequestParam(defaultValue = "20") int size) {
+        int validSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(page, validSize, Sort.by("name").ascending());
+        Page<Graph> graphPage = graphRepository.findAll(pageable);
+
+        List<GraphSummaryResponse> content = graphPage.getContent().stream()
+                .map(g -> new GraphSummaryResponse(g.getId(), g.getName()))
+                .toList();
+
+        return new PagedGraphResponse(
+                content,
+                graphPage.getNumber(),
+                graphPage.getSize(),
+                graphPage.getTotalElements(),
+                graphPage.getTotalPages(),
+                graphPage.hasNext(),
+                graphPage.hasPrevious()
+        );
     }
 
     /**
@@ -228,6 +271,60 @@ public class GraphController {
                             .map(n -> new NodeResponse(n.getId(), n.getName()))
                             .toList();
                     return ResponseEntity.ok(nodes);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * GET /graphs/{id}/nodes/page - Retrieves nodes with pagination
+     *
+     * @param id the graph ID
+     * @param page page number (0-indexed, default 0)
+     * @param size page size (default 20, max 100)
+     * @return paginated list of nodes
+     */
+    @GetMapping("/{id}/nodes/page")
+    @Operation(summary = "Get nodes with pagination", description = "Retrieves a paginated list of nodes in a graph")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved paginated nodes",
+                    content = @Content(schema = @Schema(implementation = PagedNodeResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "node.getAllPaged", description = "Time taken to retrieve paginated nodes")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<PagedNodeResponse> getAllNodesPaged(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size (max 100)") @RequestParam(defaultValue = "20") int size) {
+        return graphRepository.findById(id)
+                .map(graph -> {
+                    List<GraphNode> allNodes = graph.getNodes().stream()
+                            .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+                            .toList();
+
+                    int validSize = Math.min(Math.max(size, 1), 100);
+                    int start = page * validSize;
+                    int end = Math.min(start + validSize, allNodes.size());
+
+                    List<NodeResponse> content = (start >= allNodes.size())
+                            ? List.of()
+                            : allNodes.subList(start, end).stream()
+                                    .map(n -> new NodeResponse(n.getId(), n.getName()))
+                                    .toList();
+
+                    int totalPages = (int) Math.ceil((double) allNodes.size() / validSize);
+
+                    return ResponseEntity.ok(new PagedNodeResponse(
+                            content,
+                            page,
+                            validSize,
+                            allNodes.size(),
+                            totalPages,
+                            page < totalPages - 1,
+                            page > 0
+                    ));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -806,5 +903,47 @@ public class GraphController {
             List<NodeResponse> nodes,
             @Schema(description = "All edges in the graph")
             List<EdgeResponse> edges) {
+    }
+
+    /**
+     * Response DTO for paginated graphs
+     */
+    @Schema(description = "Paginated list of graphs")
+    public record PagedGraphResponse(
+            @Schema(description = "List of graphs on this page")
+            List<GraphSummaryResponse> content,
+            @Schema(description = "Current page number (0-indexed)")
+            int page,
+            @Schema(description = "Page size")
+            int size,
+            @Schema(description = "Total number of graphs")
+            long totalElements,
+            @Schema(description = "Total number of pages")
+            int totalPages,
+            @Schema(description = "Whether there is a next page")
+            boolean hasNext,
+            @Schema(description = "Whether there is a previous page")
+            boolean hasPrevious) {
+    }
+
+    /**
+     * Response DTO for paginated nodes
+     */
+    @Schema(description = "Paginated list of nodes")
+    public record PagedNodeResponse(
+            @Schema(description = "List of nodes on this page")
+            List<NodeResponse> content,
+            @Schema(description = "Current page number (0-indexed)")
+            int page,
+            @Schema(description = "Page size")
+            int size,
+            @Schema(description = "Total number of nodes")
+            long totalElements,
+            @Schema(description = "Total number of pages")
+            int totalPages,
+            @Schema(description = "Whether there is a next page")
+            boolean hasNext,
+            @Schema(description = "Whether there is a previous page")
+            boolean hasPrevious) {
     }
 }

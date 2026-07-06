@@ -10,6 +10,8 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -57,6 +59,11 @@ public class GraphRepositoryAdapter implements GraphRepository {
     @Cacheable(value = CacheConfiguration.GRAPHS_CACHE)
     public List<Graph> findAll() {
         return jpaGraphRepository.findAll();
+    }
+
+    @Override
+    public Page<Graph> findAll(Pageable pageable) {
+        return jpaGraphRepository.findAll(pageable);
     }
 
     @Override
