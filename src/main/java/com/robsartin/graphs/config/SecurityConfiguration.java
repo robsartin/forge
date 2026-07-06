@@ -27,7 +27,7 @@ public class SecurityConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfiguration.class);
 
-    @Value("${app.dev-user.enabled:true}")
+    @Value("${app.dev-user.enabled:false}")
     private boolean devUserEnabled;
 
     @Value("${app.dev-user.username:dev}")
@@ -134,7 +134,7 @@ public class SecurityConfiguration {
             logger.info("Development user disabled");
             return new InMemoryUserDetailsManager();
         }
-        logger.info("Development user enabled: {}", devUsername);
+        logger.warn("SECURITY WARNING: Development user '{}' is enabled. Do NOT use in production!", devUsername);
         var user = User.builder()
                 .username(devUsername)
                 .password(passwordEncoder.encode(devPassword))

@@ -78,6 +78,51 @@ public class GraphController {
     }
 
     /**
+     * GET /graphs/{id}/full - Retrieves a complete graph with all nodes and edges in a single call
+     *
+     * @param id the graph ID
+     * @return the full graph structure if found, 404 if not found
+     */
+    @GetMapping("/{id}/full")
+    @Operation(summary = "Get full graph", description = "Retrieves complete graph structure including all nodes and edges in a single call")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Full graph found",
+                    content = @Content(schema = @Schema(implementation = FullGraphResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "graph.getFull", description = "Time taken to retrieve full graph")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
+    public ResponseEntity<FullGraphResponse> getFullGraph(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id) {
+        return graphRepository.findById(id)
+                .map(graph -> {
+                    List<NodeResponse> nodes = graph.getNodes().stream()
+                            .map(n -> new NodeResponse(n.getId(), n.getName()))
+                            .toList();
+
+                    List<EdgeResponse> edges = new ArrayList<>();
+                    for (GraphNode node : graph.getNodes()) {
+                        var context = graph.getImmutableGraph().getContext(node.getId());
+                        if (context != null) {
+                            for (UUID successorId : context.getSuccessors().keySet()) {
+                                edges.add(new EdgeResponse(node.getId(), successorId));
+                            }
+                        }
+                    }
+
+                    return ResponseEntity.ok(new FullGraphResponse(
+                            graph.getId(),
+                            graph.getName(),
+                            nodes,
+                            edges
+                    ));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
      * GET /graphs/{id} - Retrieves a specific graph by ID
      *
      * @param id the graph ID
@@ -735,5 +780,31 @@ public class GraphController {
             int degree,
             @Schema(description = "Number of nodes with this degree")
             int count) {
+    }
+
+    /**
+     * Response DTO for edge
+     */
+    @Schema(description = "Edge connecting two nodes")
+    public record EdgeResponse(
+            @Schema(description = "Source node ID")
+            UUID source,
+            @Schema(description = "Target node ID")
+            UUID target) {
+    }
+
+    /**
+     * Response DTO for full graph with all nodes and edges
+     */
+    @Schema(description = "Complete graph structure with all nodes and edges")
+    public record FullGraphResponse(
+            @Schema(description = "Graph ID")
+            UUID id,
+            @Schema(description = "Graph name")
+            String name,
+            @Schema(description = "All nodes in the graph")
+            List<NodeResponse> nodes,
+            @Schema(description = "All edges in the graph")
+            List<EdgeResponse> edges) {
     }
 }

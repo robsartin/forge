@@ -559,4 +559,78 @@ class GraphControllerTest {
         mockMvc.perform(get("/graphs/" + randomUuid + "/bfs/" + nodeId).with(authenticatedUser))
                 .andExpect(status().isNotFound());
     }
+
+    // GET /graphs/{id}/full - get full graph with nodes and edges
+    @Test
+    void shouldReturnFullGraphWithNodesAndEdges() throws Exception {
+        // Create graph
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String graphId = objectMapper.readTree(graphResponse).get("id").asText();
+
+        // Create nodes
+        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node A\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node B\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String nodeAId = objectMapper.readTree(nodeAResponse).get("id").asText();
+        String nodeBId = objectMapper.readTree(nodeBResponse).get("id").asText();
+
+        // Add edge: A -> B
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser).with(csrf()))
+                .andExpect(status().isOk());
+
+        // Get full graph
+        mockMvc.perform(get("/graphs/" + graphId + "/full").with(authenticatedUser))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(graphId))
+                .andExpect(jsonPath("$.name").value("Test Graph"))
+                .andExpect(jsonPath("$.nodes").isArray())
+                .andExpect(jsonPath("$.nodes.length()").value(2))
+                .andExpect(jsonPath("$.edges").isArray())
+                .andExpect(jsonPath("$.edges.length()").value(1))
+                .andExpect(jsonPath("$.edges[0].source").value(nodeAId))
+                .andExpect(jsonPath("$.edges[0].target").value(nodeBId));
+    }
+
+    @Test
+    void shouldReturn404WhenGettingFullNonExistentGraph() throws Exception {
+        UUID randomUuid = UuidV7Generator.generate();
+        mockMvc.perform(get("/graphs/" + randomUuid + "/full").with(authenticatedUser))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturnEmptyEdgesForGraphWithoutEdges() throws Exception {
+        // Create graph with nodes but no edges
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"No Edges Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String graphId = objectMapper.readTree(graphResponse).get("id").asText();
+
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node A\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/graphs/" + graphId + "/full").with(authenticatedUser))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes.length()").value(1))
+                .andExpect(jsonPath("$.edges.length()").value(0));
+    }
 }
