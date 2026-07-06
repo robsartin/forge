@@ -7,6 +7,15 @@ set -e
 echo "Creating 10 improvement issues for robsartin/forge..."
 echo ""
 
+# Create labels if they don't exist
+echo "Ensuring labels exist..."
+gh label create "security" --description "Security related issues" --color "D93F0B" 2>/dev/null || true
+gh label create "performance" --description "Performance improvements" --color "0E8A16" 2>/dev/null || true
+gh label create "infrastructure" --description "Infrastructure and tooling" --color "006B75" 2>/dev/null || true
+gh label create "dependencies" --description "Dependency updates" --color "0366D6" 2>/dev/null || true
+echo "Labels ready."
+echo ""
+
 # Issue 1: Critical - Security fix
 echo "Creating issue 1/10: SECURITY: Fix dev user credentials enabled by default"
 gh issue create \
