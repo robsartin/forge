@@ -23,6 +23,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,6 +79,208 @@ public class GraphController {
         return graphRepository.findAll().stream()
                 .map(g -> new GraphSummaryResponse(g.getId(), g.getName()))
                 .toList();
+    }
+
+    /**
+     * GET /graphs/page - Retrieves graphs with pagination
+     *
+     * @param page page number (0-indexed, default 0)
+     * @param size page size (default 20, max 100)
+     * @return paginated list of graphs
+     */
+    @GetMapping("/page")
+    @Operation(summary = "Get graphs with pagination", description = "Retrieves a paginated list of graphs")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved paginated graphs",
+                    content = @Content(schema = @Schema(implementation = PagedGraphResponse.class)))
+    })
+    @Timed(value = "graph.getAllPaged", description = "Time taken to retrieve paginated graphs")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
+    public PagedGraphResponse getAllGraphsPaged(
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size (max 100)") @RequestParam(defaultValue = "20") int size) {
+        int validSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(page, validSize, Sort.by("name").ascending());
+        Page<Graph> graphPage = graphRepository.findAll(pageable);
+
+        List<GraphSummaryResponse> content = graphPage.getContent().stream()
+                .map(g -> new GraphSummaryResponse(g.getId(), g.getName()))
+                .toList();
+
+        return new PagedGraphResponse(
+                content,
+                graphPage.getNumber(),
+                graphPage.getSize(),
+                graphPage.getTotalElements(),
+                graphPage.getTotalPages(),
+                graphPage.hasNext(),
+                graphPage.hasPrevious()
+        );
+    }
+
+    /**
+     * GET /graphs/{id}/full - Retrieves a complete graph with all nodes and edges in a single call
+     *
+     * @param id the graph ID
+     * @return the full graph structure if found, 404 if not found
+     */
+    @GetMapping("/{id}/full")
+    @Operation(summary = "Get full graph", description = "Retrieves complete graph structure including all nodes and edges in a single call")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Full graph found",
+                    content = @Content(schema = @Schema(implementation = FullGraphResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "graph.getFull", description = "Time taken to retrieve full graph")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
+    public ResponseEntity<FullGraphResponse> getFullGraph(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id) {
+        return graphRepository.findById(id)
+                .map(graph -> {
+                    List<NodeResponse> nodes = graph.getNodes().stream()
+                            .map(n -> new NodeResponse(n.getId(), n.getName()))
+                            .toList();
+
+                    List<EdgeResponse> edges = new ArrayList<>();
+                    for (GraphNode node : graph.getNodes()) {
+                        var context = graph.getImmutableGraph().getContext(node.getId());
+                        if (context != null) {
+                            for (UUID successorId : context.getSuccessors().keySet()) {
+                                edges.add(new EdgeResponse(node.getId(), successorId));
+                            }
+                        }
+                    }
+
+                    return ResponseEntity.ok(new FullGraphResponse(
+                            graph.getId(),
+                            graph.getName(),
+                            nodes,
+                            edges
+                    ));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * GET /graphs/{id}/export - Exports a graph as JSON for backup/sharing
+     *
+     * @param id the graph ID
+     * @return the exported graph structure
+     */
+    @GetMapping("/{id}/export")
+    @Operation(summary = "Export graph", description = "Exports a complete graph structure as JSON for backup or sharing")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Graph exported successfully",
+                    content = @Content(schema = @Schema(implementation = GraphExportResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "graph.export", description = "Time taken to export a graph")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
+    public ResponseEntity<GraphExportResponse> exportGraph(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id) {
+        return graphRepository.findById(id)
+                .map(graph -> {
+                    List<ExportNodeDto> nodes = graph.getNodes().stream()
+                            .map(n -> new ExportNodeDto(n.getId().toString(), n.getName()))
+                            .toList();
+
+                    List<ExportEdgeDto> edges = new ArrayList<>();
+                    for (GraphNode node : graph.getNodes()) {
+                        var context = graph.getImmutableGraph().getContext(node.getId());
+                        if (context != null) {
+                            for (UUID successorId : context.getSuccessors().keySet()) {
+                                edges.add(new ExportEdgeDto(node.getId().toString(), successorId.toString()));
+                            }
+                        }
+                    }
+
+                    return ResponseEntity.ok(new GraphExportResponse(
+                            "1.0",
+                            java.time.Instant.now().toString(),
+                            new ExportGraphDto(graph.getName(), nodes, edges)
+                    ));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * POST /graphs/import - Imports a graph from JSON
+     *
+     * @param request the import request containing the graph structure
+     * @return the created graph with new IDs
+     */
+    @PostMapping("/import")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
+    @Operation(summary = "Import graph", description = "Creates a new graph from an exported JSON structure")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Graph imported successfully",
+                    content = @Content(schema = @Schema(implementation = FullGraphResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid import data", content = @Content)
+    })
+    @Timed(value = "graph.import", description = "Time taken to import a graph")
+    @CircuitBreaker(name = "graphService")
+    @RateLimiter(name = "graphService")
+    @Retry(name = "graphService")
+    public FullGraphResponse importGraph(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Graph import request",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = GraphImportRequest.class)))
+            @Valid @RequestBody GraphImportRequest request) {
+        Graph graph = new Graph(request.graph().name());
+
+        // Map old IDs to new nodes
+        java.util.Map<String, GraphNode> nodeMap = new java.util.HashMap<>();
+        for (ExportNodeDto nodeDto : request.graph().nodes()) {
+            GraphNode node = graph.addNode(nodeDto.name());
+            nodeMap.put(nodeDto.id(), node);
+        }
+
+        // Save to get IDs assigned
+        Graph savedGraph = graphRepository.save(graph);
+
+        // Rebuild node map with saved nodes
+        nodeMap.clear();
+        for (int i = 0; i < request.graph().nodes().size(); i++) {
+            String oldId = request.graph().nodes().get(i).id();
+            GraphNode savedNode = savedGraph.getNodes().get(i);
+            nodeMap.put(oldId, savedNode);
+        }
+
+        // Add edges using mapped IDs
+        for (ExportEdgeDto edgeDto : request.graph().edges()) {
+            GraphNode fromNode = nodeMap.get(edgeDto.from());
+            GraphNode toNode = nodeMap.get(edgeDto.to());
+            if (fromNode != null && toNode != null) {
+                savedGraph.addEdge(fromNode.getId(), toNode.getId());
+            }
+        }
+
+        savedGraph = graphRepository.save(savedGraph);
+
+        // Build response
+        List<NodeResponse> nodes = savedGraph.getNodes().stream()
+                .map(n -> new NodeResponse(n.getId(), n.getName()))
+                .toList();
+
+        List<EdgeResponse> edges = new ArrayList<>();
+        for (GraphNode node : savedGraph.getNodes()) {
+            var context = savedGraph.getImmutableGraph().getContext(node.getId());
+            if (context != null) {
+                for (UUID successorId : context.getSuccessors().keySet()) {
+                    edges.add(new EdgeResponse(node.getId(), successorId));
+                }
+            }
+        }
+
+        return new FullGraphResponse(savedGraph.getId(), savedGraph.getName(), nodes, edges);
     }
 
     /**
@@ -183,6 +389,60 @@ public class GraphController {
                             .map(n -> new NodeResponse(n.getId(), n.getName()))
                             .toList();
                     return ResponseEntity.ok(nodes);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * GET /graphs/{id}/nodes/page - Retrieves nodes with pagination
+     *
+     * @param id the graph ID
+     * @param page page number (0-indexed, default 0)
+     * @param size page size (default 20, max 100)
+     * @return paginated list of nodes
+     */
+    @GetMapping("/{id}/nodes/page")
+    @Operation(summary = "Get nodes with pagination", description = "Retrieves a paginated list of nodes in a graph")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved paginated nodes",
+                    content = @Content(schema = @Schema(implementation = PagedNodeResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Graph not found", content = @Content)
+    })
+    @Timed(value = "node.getAllPaged", description = "Time taken to retrieve paginated nodes")
+    @CircuitBreaker(name = "nodeService")
+    @RateLimiter(name = "nodeService")
+    @Retry(name = "nodeService")
+    public ResponseEntity<PagedNodeResponse> getAllNodesPaged(
+            @Parameter(description = "Graph ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size (max 100)") @RequestParam(defaultValue = "20") int size) {
+        return graphRepository.findById(id)
+                .map(graph -> {
+                    List<GraphNode> allNodes = graph.getNodes().stream()
+                            .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+                            .toList();
+
+                    int validSize = Math.min(Math.max(size, 1), 100);
+                    int start = page * validSize;
+                    int end = Math.min(start + validSize, allNodes.size());
+
+                    List<NodeResponse> content = (start >= allNodes.size())
+                            ? List.of()
+                            : allNodes.subList(start, end).stream()
+                                    .map(n -> new NodeResponse(n.getId(), n.getName()))
+                                    .toList();
+
+                    int totalPages = (int) Math.ceil((double) allNodes.size() / validSize);
+
+                    return ResponseEntity.ok(new PagedNodeResponse(
+                            content,
+                            page,
+                            validSize,
+                            allNodes.size(),
+                            totalPages,
+                            page < totalPages - 1,
+                            page > 0
+                    ));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -735,5 +995,132 @@ public class GraphController {
             int degree,
             @Schema(description = "Number of nodes with this degree")
             int count) {
+    }
+
+    /**
+     * Response DTO for edge
+     */
+    @Schema(description = "Edge connecting two nodes")
+    public record EdgeResponse(
+            @Schema(description = "Source node ID")
+            UUID source,
+            @Schema(description = "Target node ID")
+            UUID target) {
+    }
+
+    /**
+     * Response DTO for full graph with all nodes and edges
+     */
+    @Schema(description = "Complete graph structure with all nodes and edges")
+    public record FullGraphResponse(
+            @Schema(description = "Graph ID")
+            UUID id,
+            @Schema(description = "Graph name")
+            String name,
+            @Schema(description = "All nodes in the graph")
+            List<NodeResponse> nodes,
+            @Schema(description = "All edges in the graph")
+            List<EdgeResponse> edges) {
+    }
+
+    /**
+     * Response DTO for paginated graphs
+     */
+    @Schema(description = "Paginated list of graphs")
+    public record PagedGraphResponse(
+            @Schema(description = "List of graphs on this page")
+            List<GraphSummaryResponse> content,
+            @Schema(description = "Current page number (0-indexed)")
+            int page,
+            @Schema(description = "Page size")
+            int size,
+            @Schema(description = "Total number of graphs")
+            long totalElements,
+            @Schema(description = "Total number of pages")
+            int totalPages,
+            @Schema(description = "Whether there is a next page")
+            boolean hasNext,
+            @Schema(description = "Whether there is a previous page")
+            boolean hasPrevious) {
+    }
+
+    /**
+     * Response DTO for paginated nodes
+     */
+    @Schema(description = "Paginated list of nodes")
+    public record PagedNodeResponse(
+            @Schema(description = "List of nodes on this page")
+            List<NodeResponse> content,
+            @Schema(description = "Current page number (0-indexed)")
+            int page,
+            @Schema(description = "Page size")
+            int size,
+            @Schema(description = "Total number of nodes")
+            long totalElements,
+            @Schema(description = "Total number of pages")
+            int totalPages,
+            @Schema(description = "Whether there is a next page")
+            boolean hasNext,
+            @Schema(description = "Whether there is a previous page")
+            boolean hasPrevious) {
+    }
+
+    /**
+     * DTO for exported node
+     */
+    @Schema(description = "Node in export format")
+    public record ExportNodeDto(
+            @Schema(description = "Original node ID")
+            String id,
+            @Schema(description = "Node name")
+            String name) {
+    }
+
+    /**
+     * DTO for exported edge
+     */
+    @Schema(description = "Edge in export format")
+    public record ExportEdgeDto(
+            @Schema(description = "Source node ID")
+            String from,
+            @Schema(description = "Target node ID")
+            String to) {
+    }
+
+    /**
+     * DTO for exported graph structure
+     */
+    @Schema(description = "Graph structure in export format")
+    public record ExportGraphDto(
+            @Schema(description = "Graph name")
+            String name,
+            @Schema(description = "List of nodes")
+            List<ExportNodeDto> nodes,
+            @Schema(description = "List of edges")
+            List<ExportEdgeDto> edges) {
+    }
+
+    /**
+     * Response DTO for graph export
+     */
+    @Schema(description = "Complete exported graph with metadata")
+    public record GraphExportResponse(
+            @Schema(description = "Export format version")
+            String version,
+            @Schema(description = "Export timestamp")
+            String exportedAt,
+            @Schema(description = "The graph data")
+            ExportGraphDto graph) {
+    }
+
+    /**
+     * Request DTO for graph import
+     */
+    @Schema(description = "Request to import a graph")
+    public record GraphImportRequest(
+            @Schema(description = "Export format version")
+            String version,
+            @Schema(description = "The graph data to import")
+            @Valid ExportGraphDto graph) {
     }
 }

@@ -179,3 +179,12 @@ resilience4j:
         base-config: default
       traversalService:
         base-config: default
+
+# Application settings
+app:
+  # CORS configuration for external API consumers
+  cors:
+    enabled: false
+    # allowed-origins:
+    #   - http://localhost:3000
+    #   - https://your-frontend.com

@@ -191,18 +191,10 @@ function GraphEditor() {
     const loadGraphData = async (graphId) => {
         try {
             setLoading(true);
-            const nodeData = await api.getNodes(graphId);
-            setNodes(nodeData.map(n => ({ ...n, x: Math.random() * 500, y: Math.random() * 400 })));
-
-            const edgeList = [];
-            for (const node of nodeData) {
-                const nodeWithLinks = await api.getNodeWithLinks(graphId, node.id);
-                for (const toNode of nodeWithLinks.toNodes || []) {
-                    edgeList.push({ source: node.id, target: toNode.id });
-                }
-            }
-            setEdges(edgeList);
-            setStatus(`Loaded graph with ${nodeData.length} nodes and ${edgeList.length} edges`);
+            const fullGraph = await api.getFullGraph(graphId);
+            setNodes(fullGraph.nodes.map(n => ({ ...n, x: Math.random() * 500, y: Math.random() * 400 })));
+            setEdges(fullGraph.edges || []);
+            setStatus(`Loaded graph with ${fullGraph.nodes.length} nodes and ${(fullGraph.edges || []).length} edges`);
         } catch (err) {
             setError('Failed to load graph data');
         } finally {

@@ -559,4 +559,280 @@ class GraphControllerTest {
         mockMvc.perform(get("/graphs/" + randomUuid + "/bfs/" + nodeId).with(authenticatedUser))
                 .andExpect(status().isNotFound());
     }
+
+    // GET /graphs/{id}/full - get full graph with nodes and edges
+    @Test
+    void shouldReturnFullGraphWithNodesAndEdges() throws Exception {
+        // Create graph
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String graphId = objectMapper.readTree(graphResponse).get("id").asText();
+
+        // Create nodes
+        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node A\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node B\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String nodeAId = objectMapper.readTree(nodeAResponse).get("id").asText();
+        String nodeBId = objectMapper.readTree(nodeBResponse).get("id").asText();
+
+        // Add edge: A -> B
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser).with(csrf()))
+                .andExpect(status().isOk());
+
+        // Get full graph
+        mockMvc.perform(get("/graphs/" + graphId + "/full").with(authenticatedUser))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(graphId))
+                .andExpect(jsonPath("$.name").value("Test Graph"))
+                .andExpect(jsonPath("$.nodes").isArray())
+                .andExpect(jsonPath("$.nodes.length()").value(2))
+                .andExpect(jsonPath("$.edges").isArray())
+                .andExpect(jsonPath("$.edges.length()").value(1))
+                .andExpect(jsonPath("$.edges[0].source").value(nodeAId))
+                .andExpect(jsonPath("$.edges[0].target").value(nodeBId));
+    }
+
+    @Test
+    void shouldReturn404WhenGettingFullNonExistentGraph() throws Exception {
+        UUID randomUuid = UuidV7Generator.generate();
+        mockMvc.perform(get("/graphs/" + randomUuid + "/full").with(authenticatedUser))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturnEmptyEdgesForGraphWithoutEdges() throws Exception {
+        // Create graph with nodes but no edges
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"No Edges Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String graphId = objectMapper.readTree(graphResponse).get("id").asText();
+
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node A\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/graphs/" + graphId + "/full").with(authenticatedUser))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes.length()").value(1))
+                .andExpect(jsonPath("$.edges.length()").value(0));
+    }
+
+    // GET /graphs/page - paginated graphs
+    @Test
+    void shouldReturnPaginatedGraphs() throws Exception {
+        // Create multiple graphs
+        for (int i = 1; i <= 5; i++) {
+            mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\": \"Graph " + i + "\"}"))
+                    .andExpect(status().isCreated());
+        }
+
+        // Get first page with size 2
+        mockMvc.perform(get("/graphs/page").with(authenticatedUser)
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(5))
+                .andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.hasPrevious").value(false));
+    }
+
+    @Test
+    void shouldReturnSecondPageOfGraphs() throws Exception {
+        // Create multiple graphs
+        for (int i = 1; i <= 5; i++) {
+            mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\": \"Test Graph " + i + "\"}"))
+                    .andExpect(status().isCreated());
+        }
+
+        // Get second page
+        mockMvc.perform(get("/graphs/page").with(authenticatedUser)
+                        .param("page", "1")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.hasPrevious").value(true));
+    }
+
+    @Test
+    void shouldLimitPageSizeTo100() throws Exception {
+        mockMvc.perform(get("/graphs/page").with(authenticatedUser)
+                        .param("size", "200"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(100));
+    }
+
+    // GET /graphs/{id}/nodes/page - paginated nodes
+    @Test
+    void shouldReturnPaginatedNodes() throws Exception {
+        // Create graph
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Paginated Nodes Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String graphId = objectMapper.readTree(graphResponse).get("id").asText();
+
+        // Create multiple nodes
+        for (int i = 1; i <= 5; i++) {
+            mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\": \"Node " + i + "\"}"))
+                    .andExpect(status().isCreated());
+        }
+
+        // Get first page with size 2
+        mockMvc.perform(get("/graphs/" + graphId + "/nodes/page").with(authenticatedUser)
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(5))
+                .andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.hasPrevious").value(false));
+    }
+
+    @Test
+    void shouldReturn404ForPaginatedNodesOnNonExistentGraph() throws Exception {
+        UUID randomUuid = UuidV7Generator.generate();
+        mockMvc.perform(get("/graphs/" + randomUuid + "/nodes/page").with(authenticatedUser))
+                .andExpect(status().isNotFound());
+    }
+
+    // GET /graphs/{id}/export - export graph
+    @Test
+    void shouldExportGraph() throws Exception {
+        // Create graph with nodes and edge
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Export Test Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String graphId = objectMapper.readTree(graphResponse).get("id").asText();
+
+        String nodeAResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node A\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String nodeBResponse = mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node B\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String nodeAId = objectMapper.readTree(nodeAResponse).get("id").asText();
+        String nodeBId = objectMapper.readTree(nodeBResponse).get("id").asText();
+
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes/" + nodeAId + "/" + nodeBId).with(authenticatedUser).with(csrf()))
+                .andExpect(status().isOk());
+
+        // Export
+        mockMvc.perform(get("/graphs/" + graphId + "/export").with(authenticatedUser))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value("1.0"))
+                .andExpect(jsonPath("$.exportedAt").exists())
+                .andExpect(jsonPath("$.graph.name").value("Export Test Graph"))
+                .andExpect(jsonPath("$.graph.nodes.length()").value(2))
+                .andExpect(jsonPath("$.graph.edges.length()").value(1));
+    }
+
+    @Test
+    void shouldReturn404WhenExportingNonExistentGraph() throws Exception {
+        UUID randomUuid = UuidV7Generator.generate();
+        mockMvc.perform(get("/graphs/" + randomUuid + "/export").with(authenticatedUser))
+                .andExpect(status().isNotFound());
+    }
+
+    // POST /graphs/import - import graph
+    @Test
+    void shouldImportGraph() throws Exception {
+        String importJson = """
+            {
+                "version": "1.0",
+                "graph": {
+                    "name": "Imported Graph",
+                    "nodes": [
+                        {"id": "old-id-1", "name": "Node X"},
+                        {"id": "old-id-2", "name": "Node Y"}
+                    ],
+                    "edges": [
+                        {"from": "old-id-1", "to": "old-id-2"}
+                    ]
+                }
+            }
+            """;
+
+        mockMvc.perform(post("/graphs/import").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(importJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.name").value("Imported Graph"))
+                .andExpect(jsonPath("$.nodes.length()").value(2))
+                .andExpect(jsonPath("$.edges.length()").value(1));
+    }
+
+    @Test
+    void shouldImportAndExportRoundTrip() throws Exception {
+        // Create and export a graph
+        String graphResponse = mockMvc.perform(post("/graphs").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"RoundTrip Graph\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String graphId = objectMapper.readTree(graphResponse).get("id").asText();
+
+        mockMvc.perform(post("/graphs/" + graphId + "/nodes").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Node 1\"}"))
+                .andExpect(status().isCreated());
+
+        String exportResponse = mockMvc.perform(get("/graphs/" + graphId + "/export").with(authenticatedUser))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Import the exported graph
+        mockMvc.perform(post("/graphs/import").with(authenticatedUser).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(exportResponse))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("RoundTrip Graph"))
+                .andExpect(jsonPath("$.nodes.length()").value(1));
+    }
 }

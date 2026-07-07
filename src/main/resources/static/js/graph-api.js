@@ -200,6 +200,16 @@ const graphApi = {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/metrics/distribution`);
         if (!res.ok) return [];
         return res.json();
+    },
+
+    /**
+     * Get full graph with all nodes and edges in a single call
+     * @param {string} graphId - Graph ID
+     * @returns {Promise<Object>} Full graph structure
+     */
+    async getFullGraph(graphId) {
+        const res = await fetch(`${API_BASE}/graphs/${graphId}/full`);
+        return res.json();
     }
 };
 
