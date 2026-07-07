@@ -1,15 +1,8 @@
-/**
- * Graph API client functions
- */
 const API_BASE = '';
 
-// CSRF token cache
 let csrfToken = null;
 let csrfHeaderName = 'X-CSRF-TOKEN';
 
-/**
- * Fetch CSRF token from server
- */
 async function fetchCsrfToken() {
     if (csrfToken) return csrfToken;
     const res = await fetch('/api/csrf', { credentials: 'same-origin' });
@@ -21,9 +14,6 @@ async function fetchCsrfToken() {
     return csrfToken;
 }
 
-/**
- * Get headers with CSRF token for state-changing requests
- */
 async function getHeaders(includeJson = true) {
     const token = await fetchCsrfToken();
     const headers = {};
@@ -36,21 +26,12 @@ async function getHeaders(includeJson = true) {
     return headers;
 }
 
-const graphApi = {
-    /**
-     * Get all graphs
-     * @returns {Promise<Array>} List of graphs
-     */
+export const graphApi = {
     async getGraphs() {
         const res = await fetch(`${API_BASE}/graphs`);
         return res.json();
     },
 
-    /**
-     * Create a new graph
-     * @param {string} name - Graph name
-     * @returns {Promise<Object>} Created graph
-     */
     async createGraph(name) {
         const res = await fetch(`${API_BASE}/graphs`, {
             method: 'POST',
@@ -61,10 +42,6 @@ const graphApi = {
         return res.json();
     },
 
-    /**
-     * Delete a graph
-     * @param {string} id - Graph ID
-     */
     async deleteGraph(id) {
         await fetch(`${API_BASE}/graphs/${id}`, {
             method: 'DELETE',
@@ -73,22 +50,11 @@ const graphApi = {
         });
     },
 
-    /**
-     * Get all nodes in a graph
-     * @param {string} graphId - Graph ID
-     * @returns {Promise<Array>} List of nodes
-     */
     async getNodes(graphId) {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/nodes`);
         return res.json();
     },
 
-    /**
-     * Create a new node in a graph
-     * @param {string} graphId - Graph ID
-     * @param {string} name - Node name
-     * @returns {Promise<Object>} Created node
-     */
     async createNode(graphId, name) {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/nodes`, {
             method: 'POST',
@@ -99,12 +65,6 @@ const graphApi = {
         return res.json();
     },
 
-    /**
-     * Add an edge between two nodes
-     * @param {string} graphId - Graph ID
-     * @param {string} fromId - Source node ID
-     * @param {string} toId - Target node ID
-     */
     async addEdge(graphId, fromId, toId) {
         await fetch(`${API_BASE}/graphs/${graphId}/nodes/${fromId}/${toId}`, {
             method: 'POST',
@@ -113,24 +73,11 @@ const graphApi = {
         });
     },
 
-    /**
-     * Get a node with its linked nodes
-     * @param {string} graphId - Graph ID
-     * @param {string} nodeId - Node ID
-     * @returns {Promise<Object>} Node with links
-     */
     async getNodeWithLinks(graphId, nodeId) {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/nodes/${nodeId}`);
         return res.json();
     },
 
-    /**
-     * Update a node's name
-     * @param {string} graphId - Graph ID
-     * @param {string} nodeId - Node ID
-     * @param {string} name - New node name
-     * @returns {Promise<Object>} Updated node
-     */
     async updateNode(graphId, nodeId, name) {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/nodes/${nodeId}`, {
             method: 'PATCH',
@@ -141,11 +88,6 @@ const graphApi = {
         return res.json();
     },
 
-    /**
-     * Delete a node and its edges
-     * @param {string} graphId - Graph ID
-     * @param {string} nodeId - Node ID
-     */
     async deleteNode(graphId, nodeId) {
         await fetch(`${API_BASE}/graphs/${graphId}/nodes/${nodeId}`, {
             method: 'DELETE',
@@ -154,12 +96,6 @@ const graphApi = {
         });
     },
 
-    /**
-     * Delete an edge between two nodes
-     * @param {string} graphId - Graph ID
-     * @param {string} fromId - Source node ID
-     * @param {string} toId - Target node ID
-     */
     async deleteEdge(graphId, fromId, toId) {
         await fetch(`${API_BASE}/graphs/${graphId}/nodes/${fromId}/${toId}`, {
             method: 'DELETE',
@@ -168,50 +104,23 @@ const graphApi = {
         });
     },
 
-    /**
-     * Get graph metrics
-     * @param {string} graphId - Graph ID
-     * @returns {Promise<Object|null>} Graph metrics or null if not available
-     */
     async getGraphMetrics(graphId) {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/metrics`);
         if (!res.ok) return null;
         return res.json();
     },
 
-    /**
-     * Get node metrics
-     * @param {string} graphId - Graph ID
-     * @param {string} nodeId - Node ID
-     * @returns {Promise<Object|null>} Node metrics or null if not available
-     */
     async getNodeMetrics(graphId, nodeId) {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/metrics/nodes/${nodeId}`);
         if (!res.ok) return null;
         return res.json();
     },
 
-    /**
-     * Get degree distribution
-     * @param {string} graphId - Graph ID
-     * @returns {Promise<Array>} Degree distribution data
-     */
     async getDegreeDistribution(graphId) {
         const res = await fetch(`${API_BASE}/graphs/${graphId}/metrics/distribution`);
         if (!res.ok) return [];
         return res.json();
-    },
-
-    /**
-     * Get full graph with all nodes and edges in a single call
-     * @param {string} graphId - Graph ID
-     * @returns {Promise<Object>} Full graph structure
-     */
-    async getFullGraph(graphId) {
-        const res = await fetch(`${API_BASE}/graphs/${graphId}/full`);
-        return res.json();
     }
 };
 
-// Export for use in other scripts
-window.graphApi = graphApi;
+export default graphApi;

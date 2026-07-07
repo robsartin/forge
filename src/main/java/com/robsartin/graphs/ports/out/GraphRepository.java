@@ -1,6 +1,8 @@
 package com.robsartin.graphs.ports.out;
 
 import com.robsartin.graphs.models.Graph;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +37,14 @@ public interface GraphRepository {
      * @return a list of all graphs
      */
     List<Graph> findAll();
+
+    /**
+     * Retrieves graphs with pagination.
+     *
+     * @param pageable pagination parameters
+     * @return a page of graphs
+     */
+    Page<Graph> findAll(Pageable pageable);
 
     /**
      * Deletes a graph by its ID.

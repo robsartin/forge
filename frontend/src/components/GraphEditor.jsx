@@ -1,10 +1,8 @@
-/**
- * Main Graph Editor Application Component
- */
-function GraphEditor() {
-    const { useState, useEffect, useRef, useCallback } = React;
-    const api = window.graphApi;
+import { useState, useEffect, useRef, useCallback } from 'react';
+import GraphVisualization from './GraphVisualization';
+import { graphApi } from '../api/graphApi';
 
+export default function GraphEditor() {
     const [graphs, setGraphs] = useState([]);
     const [selectedGraph, setSelectedGraph] = useState(null);
     const [nodes, setNodes] = useState([]);
@@ -32,13 +30,11 @@ function GraphEditor() {
     const graphContainerRef = useRef(null);
     const mousePositionRef = useRef({ x: 0, y: 0 });
 
-    // Load user info and graphs on mount
     useEffect(() => {
         loadUserInfo();
         loadGraphs();
     }, []);
 
-    // Track mouse position over graph container
     useEffect(() => {
         const container = graphContainerRef.current;
         if (!container) return;
@@ -55,7 +51,6 @@ function GraphEditor() {
         return () => container.removeEventListener('mousemove', handleMouseMove);
     }, []);
 
-    // Find closest node to current mouse position
     const findClosestNode = useCallback(() => {
         if (nodes.length === 0) return null;
 
@@ -79,10 +74,8 @@ function GraphEditor() {
         return closestNode;
     }, [nodes]);
 
-    // Keyboard hotkeys for metrics panes
     useEffect(() => {
         const handleKeyDown = (event) => {
-            // Ignore if user is typing in an input
             if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
                 return;
             }
@@ -104,7 +97,7 @@ function GraphEditor() {
             return;
         }
         try {
-            const metrics = await api.getGraphMetrics(selectedGraph.id);
+            const metrics = await graphApi.getGraphMetrics(selectedGraph.id);
             if (metrics) {
                 setGraphMetrics(metrics);
                 setShowGraphMetrics(true);
@@ -123,7 +116,7 @@ function GraphEditor() {
             return;
         }
         try {
-            const distribution = await api.getDegreeDistribution(selectedGraph.id);
+            const distribution = await graphApi.getDegreeDistribution(selectedGraph.id);
             setDistributionData(distribution);
             setShowDistribution(true);
             setStatus('Displaying degree distribution');
@@ -143,7 +136,7 @@ function GraphEditor() {
             return;
         }
         try {
-            const metrics = await api.getNodeMetrics(selectedGraph.id, closestNode.id);
+            const metrics = await graphApi.getNodeMetrics(selectedGraph.id, closestNode.id);
             if (metrics) {
                 setSelectedNodeForMetrics(closestNode);
                 setNodeMetrics(metrics);
@@ -178,7 +171,7 @@ function GraphEditor() {
     const loadGraphs = async () => {
         try {
             setLoading(true);
-            const data = await api.getGraphs();
+            const data = await graphApi.getGraphs();
             setGraphs(data);
             setStatus(`Loaded ${data.length} graphs`);
         } catch (err) {
@@ -191,10 +184,18 @@ function GraphEditor() {
     const loadGraphData = async (graphId) => {
         try {
             setLoading(true);
-            const fullGraph = await api.getFullGraph(graphId);
-            setNodes(fullGraph.nodes.map(n => ({ ...n, x: Math.random() * 500, y: Math.random() * 400 })));
-            setEdges(fullGraph.edges || []);
-            setStatus(`Loaded graph with ${fullGraph.nodes.length} nodes and ${(fullGraph.edges || []).length} edges`);
+            const nodeData = await graphApi.getNodes(graphId);
+            setNodes(nodeData.map(n => ({ ...n, x: Math.random() * 500, y: Math.random() * 400 })));
+
+            const edgeList = [];
+            for (const node of nodeData) {
+                const nodeWithLinks = await graphApi.getNodeWithLinks(graphId, node.id);
+                for (const toNode of nodeWithLinks.toNodes || []) {
+                    edgeList.push({ source: node.id, target: toNode.id });
+                }
+            }
+            setEdges(edgeList);
+            setStatus(`Loaded graph with ${nodeData.length} nodes and ${edgeList.length} edges`);
         } catch (err) {
             setError('Failed to load graph data');
         } finally {
@@ -211,7 +212,7 @@ function GraphEditor() {
     const handleCreateGraph = async () => {
         if (!newGraphName.trim()) return;
         try {
-            const newGraph = await api.createGraph(newGraphName);
+            const newGraph = await graphApi.createGraph(newGraphName);
             setGraphs([...graphs, newGraph]);
             setNewGraphName('');
             setStatus(`Created graph: ${newGraphName}`);
@@ -222,7 +223,7 @@ function GraphEditor() {
 
     const handleDeleteGraph = async (graphId) => {
         try {
-            await api.deleteGraph(graphId);
+            await graphApi.deleteGraph(graphId);
             setGraphs(graphs.filter(g => g.id !== graphId));
             if (selectedGraph?.id === graphId) {
                 setSelectedGraph(null);
@@ -238,7 +239,7 @@ function GraphEditor() {
     const handleCreateNode = async () => {
         if (!selectedGraph || !newNodeName.trim()) return;
         try {
-            const newNode = await api.createNode(selectedGraph.id, newNodeName);
+            const newNode = await graphApi.createNode(selectedGraph.id, newNodeName);
             setNodes([...nodes, { ...newNode, x: 400, y: 300 }]);
             setNewNodeName('');
             setStatus(`Created node: ${newNodeName}`);
@@ -250,7 +251,7 @@ function GraphEditor() {
     const handleAddEdge = async () => {
         if (!selectedGraph || !edgeFrom || !edgeTo) return;
         try {
-            await api.addEdge(selectedGraph.id, edgeFrom, edgeTo);
+            await graphApi.addEdge(selectedGraph.id, edgeFrom, edgeTo);
             setEdges([...edges, { source: edgeFrom, target: edgeTo }]);
             setEdgeFrom('');
             setEdgeTo('');
@@ -268,7 +269,7 @@ function GraphEditor() {
         if (!selectedGraph) return;
         const nodeName = `Node ${nodes.length + 1}`;
         try {
-            const newNode = await api.createNode(selectedGraph.id, nodeName);
+            const newNode = await graphApi.createNode(selectedGraph.id, nodeName);
             setNodes(prev => [...prev, { ...newNode, x, y }]);
             setStatus(`Created node: ${nodeName}`);
             setTimeout(() => {
@@ -301,7 +302,7 @@ function GraphEditor() {
             return;
         }
         try {
-            await api.updateNode(selectedGraph.id, editingNode, newName.trim());
+            await graphApi.updateNode(selectedGraph.id, editingNode, newName.trim());
             setNodes(prev => prev.map(n =>
                 n.id === editingNode ? { ...n, name: newName.trim() } : n
             ));
@@ -323,7 +324,7 @@ function GraphEditor() {
             return;
         }
         try {
-            await api.addEdge(selectedGraph.id, sourceId, targetId);
+            await graphApi.addEdge(selectedGraph.id, sourceId, targetId);
             setEdges(prev => [...prev, { source: sourceId, target: targetId }]);
             const sourceNode = nodes.find(n => n.id === sourceId);
             const targetNode = nodes.find(n => n.id === targetId);
@@ -338,7 +339,7 @@ function GraphEditor() {
         const nodeToDelete = nodes.find(n => n.id === nodeId);
         if (!nodeToDelete) return;
         try {
-            await api.deleteNode(selectedGraph.id, nodeId);
+            await graphApi.deleteNode(selectedGraph.id, nodeId);
             setNodes(prev => prev.filter(n => n.id !== nodeId));
             setEdges(prev => prev.filter(e => {
                 const sourceId = e.source?.id || e.source;
@@ -354,7 +355,7 @@ function GraphEditor() {
     const handleDeleteEdge = useCallback(async (sourceId, targetId) => {
         if (!selectedGraph) return;
         try {
-            await api.deleteEdge(selectedGraph.id, sourceId, targetId);
+            await graphApi.deleteEdge(selectedGraph.id, sourceId, targetId);
             setEdges(prev => prev.filter(e => {
                 const edgeSourceId = e.source?.id || e.source;
                 const edgeTargetId = e.target?.id || e.target;
@@ -616,7 +617,6 @@ function GraphEditor() {
                 {status}
             </footer>
 
-            {/* Graph Metrics Pane */}
             {showGraphMetrics && graphMetrics && (
                 <div className="metrics-overlay" onClick={() => setShowGraphMetrics(false)}>
                     <div className="metrics-pane" onClick={e => e.stopPropagation()}>
@@ -671,7 +671,6 @@ function GraphEditor() {
                 </div>
             )}
 
-            {/* Node Metrics Pane */}
             {showNodeMetrics && nodeMetrics && (
                 <div className="metrics-overlay" onClick={() => setShowNodeMetrics(false)}>
                     <div className="metrics-pane" onClick={e => e.stopPropagation()}>
@@ -711,7 +710,6 @@ function GraphEditor() {
                 </div>
             )}
 
-            {/* Degree Distribution Pane */}
             {showDistribution && (
                 <div className="metrics-overlay" onClick={() => setShowDistribution(false)}>
                     <div className="metrics-pane distribution-pane" onClick={e => e.stopPropagation()}>
@@ -751,7 +749,3 @@ function GraphEditor() {
         </div>
     );
 }
-
-// Initialize the application
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<GraphEditor />);
