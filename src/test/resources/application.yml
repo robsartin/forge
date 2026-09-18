@@ -2,11 +2,6 @@
 spring:
   application:
     name: graph-experiment-test
-
-# Enable dev user for tests
-app:
-  dev-user:
-    enabled: true
   main:
     lazy-initialization: true
   threads:
@@ -50,7 +45,11 @@ app:
     enabled: true
     locations: classpath:db/migration
     clean-disabled: false
-    clean-on-validation-error: true
+
+# Enable dev user for tests
+app:
+  dev-user:
+    enabled: true
 
 # Logging - quieter for tests
 logging:
