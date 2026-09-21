@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -25,6 +26,7 @@ class GlobalExceptionHandlerTest {
     @WithMockUser
     void shouldReturnStructuredErrorForValidationFailure() throws Exception {
         mockMvc.perform(post("/graphs")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -38,6 +40,7 @@ class GlobalExceptionHandlerTest {
     @WithMockUser
     void shouldReturnStructuredErrorForBlankName() throws Exception {
         mockMvc.perform(post("/graphs")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"\"}"))
                 .andExpect(status().isBadRequest())

@@ -23,6 +23,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -1093,6 +1094,7 @@ public class GraphController {
     @Schema(description = "Graph structure in export format")
     public record ExportGraphDto(
             @Schema(description = "Graph name")
+            @NotBlank(message = "Graph name is required")
             String name,
             @Schema(description = "List of nodes")
             List<ExportNodeDto> nodes,
@@ -1121,6 +1123,7 @@ public class GraphController {
             @Schema(description = "Export format version")
             String version,
             @Schema(description = "The graph data to import")
+            @NotNull(message = "Graph data is required")
             @Valid ExportGraphDto graph) {
     }
 }
