@@ -6,6 +6,7 @@ import com.robsartin.graphs.infrastructure.UuidV7Generator;
 import com.robsartin.graphs.models.Graph;
 import com.robsartin.graphs.models.GraphNode;
 import com.robsartin.graphs.ports.out.GraphRepository;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import jakarta.persistence.EntityManager;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -44,10 +45,15 @@ class GraphControllerTest {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private CircuitBreakerRegistry circuitBreakerRegistry;
+
     private RequestPostProcessor authenticatedUser;
 
     @BeforeEach
     void setUp() {
+        // Breaker state is per Spring context; reset so failure-path tests cannot leak an OPEN breaker
+        circuitBreakerRegistry.getAllCircuitBreakers().forEach(cb -> cb.reset());
         graphRepository.deleteAll();
         authenticatedUser = user("testuser").roles("USER");
     }
