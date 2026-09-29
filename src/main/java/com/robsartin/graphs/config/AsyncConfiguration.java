@@ -9,6 +9,8 @@ import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import java.util.concurrent.ThreadPoolExecutor;
+
 /**
  * Async configuration for background task processing.
  * Configures a thread pool executor for async operations like metrics computation.
@@ -24,6 +26,9 @@ public class AsyncConfiguration implements AsyncConfigurer {
         executor.setMaxPoolSize(4);
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("metrics-");
+        // Metrics are best-effort background work: when saturated, apply back-pressure by
+        // running on the caller rather than rejecting, which failed the user-facing write.
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
         return executor;
     }
