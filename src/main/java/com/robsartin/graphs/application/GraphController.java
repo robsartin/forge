@@ -243,36 +243,28 @@ public class GraphController {
             nodeMap.put(nodeDto.id(), node);
         }
 
-        // Save to get IDs assigned
-        Graph savedGraph = graphRepository.save(graph);
-
-        // Rebuild node map with saved nodes
-        nodeMap.clear();
-        for (int i = 0; i < request.graph().nodes().size(); i++) {
-            String oldId = request.graph().nodes().get(i).id();
-            GraphNode savedNode = savedGraph.getNodes().get(i);
-            nodeMap.put(oldId, savedNode);
-        }
-
-        // Add edges using mapped IDs
+        // Add edges using mapped IDs. Node IDs are assigned by Graph.addNode, so no
+        // save is needed first. (save() returns a merged copy whose transient
+        // ImmutableGraph is empty, so edges must be added to this instance.)
         for (ExportEdgeDto edgeDto : request.graph().edges()) {
             GraphNode fromNode = nodeMap.get(edgeDto.from());
             GraphNode toNode = nodeMap.get(edgeDto.to());
             if (fromNode != null && toNode != null) {
-                savedGraph.addEdge(fromNode.getId(), toNode.getId());
+                graph.addEdge(fromNode.getId(), toNode.getId());
             }
         }
 
-        savedGraph = graphRepository.save(savedGraph);
+        graphRepository.save(graph);
+        // Build the response from this instance, which holds the immutable graph.
 
         // Build response
-        List<NodeResponse> nodes = savedGraph.getNodes().stream()
+        List<NodeResponse> nodes = graph.getNodes().stream()
                 .map(n -> new NodeResponse(n.getId(), n.getName()))
                 .toList();
 
         List<EdgeResponse> edges = new ArrayList<>();
-        for (GraphNode node : savedGraph.getNodes()) {
-            var context = savedGraph.getImmutableGraph().getContext(node.getId());
+        for (GraphNode node : graph.getNodes()) {
+            var context = graph.getImmutableGraph().getContext(node.getId());
             if (context != null) {
                 for (UUID successorId : context.getSuccessors().keySet()) {
                     edges.add(new EdgeResponse(node.getId(), successorId));
@@ -280,7 +272,7 @@ public class GraphController {
             }
         }
 
-        return new FullGraphResponse(savedGraph.getId(), savedGraph.getName(), nodes, edges);
+        return new FullGraphResponse(graph.getId(), graph.getName(), nodes, edges);
     }
 
     /**
