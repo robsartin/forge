@@ -1,6 +1,7 @@
 package com.robsartin.graphs.application;
 
 import com.robsartin.graphs.config.TestOpenFeatureConfiguration;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -10,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -22,9 +24,10 @@ class GlobalExceptionHandlerTest {
     private MockMvc mockMvc;
 
     @Test
+    @DisplayName("should return structured VALIDATION_ERROR when request body has no name")
     @WithMockUser
     void shouldReturnStructuredErrorForValidationFailure() throws Exception {
-        mockMvc.perform(post("/graphs")
+        mockMvc.perform(post("/graphs").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -35,9 +38,10 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("should return structured VALIDATION_ERROR when name is blank")
     @WithMockUser
     void shouldReturnStructuredErrorForBlankName() throws Exception {
-        mockMvc.perform(post("/graphs")
+        mockMvc.perform(post("/graphs").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"\"}"))
                 .andExpect(status().isBadRequest())
